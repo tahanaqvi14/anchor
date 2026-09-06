@@ -10,6 +10,9 @@ have to.
 
 Built with Next.js 16, Supabase and Gemini, running entirely on free tiers.
 
+**[Open the live demo](https://anchor-chi-ten.vercel.app/demo)** — one click,
+no signup, into an account that already has negotiation history in it.
+
 ---
 
 ## The problem
@@ -235,6 +238,11 @@ Vercel Hobby forbids commercial use, which a portfolio piece does not run into.
   The mic button is feature-detected and simply absent where unavailable; every
   recognition error falls back to the text input, which is always the primary
   path.
+- **Email confirmation is deliberately disabled.** Supabase's built-in email
+  provider is capped at two messages per hour *for the whole project*, which
+  cannot be raised without custom SMTP — so on a shared demo the third visitor
+  to sign up in an hour would silently receive nothing. Verification would be
+  re-enabled behind real SMTP for anything with actual users.
 - **Google OAuth shows an "unverified app" warning** until the consent screen is
   verified, so the one-click demo account is the primary call to action instead.
 - **Persona voices** are preferences rather than requirements — available voices

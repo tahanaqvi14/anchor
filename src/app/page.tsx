@@ -48,10 +48,10 @@ function SiteHeader() {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/demo"
             className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-85"
           >
-            Start practising
+            Live demo
           </Link>
         </div>
       </div>
@@ -87,29 +87,33 @@ function Hero() {
           </Reveal>
 
           <Reveal delay={0.18}>
+            {/* The demo is the primary call to action, not signup. Anyone
+                arriving from a CV or a portfolio wants to see whether the
+                work is any good, and an account form is the single biggest
+                drop-off between the link and the product. */}
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
-                href="/signup"
+                href="/demo"
                 className="group inline-flex items-center gap-2 rounded-full bg-brass px-5 py-3 text-sm font-medium text-[#14120f] transition-transform hover:-translate-y-px"
               >
-                Start a negotiation
+                Try it — no signup
                 <ArrowRight
                   className="size-4 transition-transform group-hover:translate-x-0.5"
                   strokeWidth={2}
                 />
               </Link>
-              <a
-                href="#report"
+              <Link
+                href="/signup"
                 className="inline-flex items-center gap-2 rounded-full border border-rule-strong px-5 py-3 text-sm font-medium text-ink transition-colors hover:bg-paper-sunken"
               >
-                See a sample report
-              </a>
+                Create an account
+              </Link>
             </div>
           </Reveal>
 
           <Reveal delay={0.24}>
             <p className="mt-6 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
-              <span>Free to use</span>
+              <span>No signup to try it</span>
               <Dot />
               <span>Four opponents</span>
               <Dot />

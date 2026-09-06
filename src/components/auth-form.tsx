@@ -203,13 +203,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       {demoEmail && demoPassword && (
         <Button
           type="button"
-          variant="ghost"
-          size="sm"
+          variant="outline"
+          size="lg"
           className="w-full"
           loading={busy === "demo"}
           onClick={() => signInWith(demoEmail, demoPassword, "demo")}
         >
-          Or explore with the demo account
+          Explore the demo account — no signup
         </Button>
       )}
 
