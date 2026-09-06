@@ -14,8 +14,18 @@ export async function GET(request: Request) {
   // authenticated user off to somewhere else.
   const destination = next.startsWith("/") && !next.startsWith("//") ? next : "/practice";
 
+  // A provider that rejects the request comes back with ?error=... and no
+  // code. Without handling it the user is told the link was "incomplete",
+  // which is misleading — the usual cause is that the provider is not
+  // configured, or that they declined the consent screen.
+  const providerError = searchParams.get("error");
+  if (providerError) {
+    const reason = providerError === "access_denied" ? "cancelled" : "provider";
+    return NextResponse.redirect(`${base(request, origin)}/login?error=${reason}`);
+  }
+
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=missing_code`);
+    return NextResponse.redirect(`${base(request, origin)}/login?error=missing_code`);
   }
 
   const supabase = await createClient();

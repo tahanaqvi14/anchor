@@ -20,8 +20,16 @@ export async function proxy(request: NextRequest) {
   // Site URL is still localhost, a connection error) instead of being signed
   // in. Forwarding any stray code to the handler makes the flow work
   // regardless of exactly how the Supabase URL settings are configured.
-  const strayCode = request.nextUrl.searchParams.get("code");
-  if (strayCode && !request.nextUrl.pathname.startsWith("/auth/callback")) {
+  const q = request.nextUrl.searchParams;
+  // A rejected or cancelled provider sign-in comes back the same way but
+  // carrying ?error=... instead of a code, so both have to be forwarded or
+  // the failure lands on the landing page and looks like nothing happened.
+  // error_description/error_code are what distinguish an OAuth bounce from
+  // some other page that merely has an "error" query param.
+  const isAuthBounce =
+    q.has("code") || (q.has("error") && (q.has("error_description") || q.has("error_code")));
+
+  if (isAuthBounce && !request.nextUrl.pathname.startsWith("/auth/callback")) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/callback";
     return NextResponse.redirect(url);

@@ -20,6 +20,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") ?? "/practice";
+  // Encoded before being embedded in a query string: an unencoded path
+  // carrying its own ?/& would silently truncate the redirect target.
+  const nextParam = encodeURIComponent(next);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +37,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const linkErrorMessage =
     linkError === "auth_failed"
       ? "That sign-in link did not work — it may have expired or already been used. Sign in below, or request a new one."
-      : linkError === "missing_code"
-        ? "That link was incomplete. Try signing in below."
-        : null;
+      : linkError === "cancelled"
+        ? "Sign-in was cancelled. You can try again, or use an email and password."
+        : linkError === "provider"
+          ? "That sign-in provider is not available right now. Use an email and password instead."
+          : linkError === "missing_code"
+            ? "That link was incomplete. Try signing in below."
+            : null;
 
   const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
   const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
@@ -76,7 +83,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${next}` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${nextParam}` },
     });
 
     if (error) {
@@ -105,7 +112,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${next}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${nextParam}` },
     });
     if (error) {
       setError(
