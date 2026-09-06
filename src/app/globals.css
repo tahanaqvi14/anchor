@@ -1,26 +1,206 @@
 @import "tailwindcss";
 
+/* Class-based dark mode so the toggle can override the system preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Anchor — design tokens
+
+   The colour system carries meaning rather than decoration:
+     brass  = you, your position, your money
+     steel  = the opponent, cold and unmoved
+   That opposition runs from the landing page through the chat
+   transcript to the report, so colour is never arbitrary.
+
+   Ground is warm near-black / warm off-white, never blue-grey —
+   the product should feel like a case file, not a dashboard.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces */
+  --paper:         #faf8f5;
+  --paper-raised:  #ffffff;
+  --paper-sunken:  #f2eee7;
+
+  /* text */
+  --ink:           #14120f;
+  --ink-muted:     #6b645b;
+  --ink-faint:     #9a9188;
+
+  /* structure */
+  --rule:          #e5e0d8;
+  --rule-strong:   #d3ccc0;
+
+  /* you */
+  --brass:         #b5781f;
+  --brass-bright:  #d99a2b;
+  --brass-wash:    #f7edda;
+
+  /* them */
+  --steel:         #3f5f70;
+  --steel-bright:  #56798c;
+  --steel-wash:    #e8eef1;
+
+  /* verdicts */
+  --deal:          #35734a;
+  --deal-wash:     #e4efe7;
+  --walk:          #9c3d2a;
+  --walk-wash:     #f7e7e2;
+
+  --shadow-sm: 0 1px 2px rgb(20 18 15 / 0.05);
+  --shadow-md: 0 2px 4px rgb(20 18 15 / 0.04), 0 8px 24px -8px rgb(20 18 15 / 0.10);
+  --shadow-lg: 0 2px 6px rgb(20 18 15 / 0.05), 0 24px 60px -16px rgb(20 18 15 / 0.16);
+}
+
+.dark {
+  --paper:         #0d0c0b;
+  --paper-raised:  #171513;
+  --paper-sunken:  #080807;
+
+  --ink:           #f5f1ea;
+  --ink-muted:     #9a9286;
+  --ink-faint:     #6a635a;
+
+  --rule:          #272320;
+  --rule-strong:   #3a3531;
+
+  --brass:         #e0a742;
+  --brass-bright:  #f0bd63;
+  --brass-wash:    #2a2013;
+
+  --steel:         #8fb2c4;
+  --steel-bright:  #a8c6d6;
+  --steel-wash:    #162127;
+
+  --deal:          #6fb886;
+  --deal-wash:     #14241a;
+  --walk:          #e08472;
+  --walk-wash:     #2a1613;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.3), 0 24px 60px -16px rgb(0 0 0 / 0.7);
+}
+
+/* Fonts need `@theme static`, and both words matter:
+     - not `inline`, because inline substitutes values into generated
+       utilities instead of emitting :root custom properties, so the
+       var(--font-display) references in the hand-written classes below
+       would resolve to nothing;
+     - `static`, because a plain @theme only emits variables some utility
+       actually references, and nothing here uses a `font-display` utility
+       — Tailwind would tree-shake all three away and silently fall back
+       to its default system stack.
+   Colours are fine as inline: they are only ever consumed via utilities. */
+@theme static {
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans:    var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper:        var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-paper-sunken: var(--paper-sunken);
+
+  --color-ink:          var(--ink);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-faint:    var(--ink-faint);
+
+  --color-rule:         var(--rule);
+  --color-rule-strong:  var(--rule-strong);
+
+  --color-brass:        var(--brass);
+  --color-brass-bright: var(--brass-bright);
+  --color-brass-wash:   var(--brass-wash);
+
+  --color-steel:        var(--steel);
+  --color-steel-bright: var(--steel-bright);
+  --color-steel-wash:   var(--steel-wash);
+
+  --color-deal:         var(--deal);
+  --color-deal-wash:    var(--deal-wash);
+  --color-walk:         var(--walk);
+  --color-walk-wash:    var(--walk-wash);
+
+  /* Shadows are deliberately NOT registered here — a self-referential
+     `--shadow-sm: var(--shadow-sm)` would be circular. They are consumed
+     as shadow-[var(--shadow-md)] against the plain :root/.dark vars above,
+     which is what lets them differ between themes. */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================================
+   Base
+   ============================================================ */
+
+* {
+  border-color: var(--rule);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv05" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Numbers are the substance of this product. Wherever one appears it
+   should be tabular so columns and deltas line up down the page. */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.01em;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+
+/* Small uppercase label, used for section eyebrows and field labels. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 560;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+::selection {
+  background-color: var(--brass);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Hairline that reads at any DPI without looking like a default border. */
+.rule-x {
+  background-image: linear-gradient(to right, var(--rule) 0 100%);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
