@@ -87,10 +87,19 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     });
 
     if (error) {
+      const raw = error.message.toLowerCase();
       setError(
-        error.message.toLowerCase().includes("least")
+        raw.includes("least")
           ? "Passwords need to be at least 6 characters."
-          : error.message,
+          : // Supabase's built-in email service allows only a couple of
+            // messages per hour, and its raw text ("email rate limit
+            // exceeded") reads like the user did something wrong. Point
+            // them at the demo account instead of a dead end.
+            raw.includes("rate limit") || raw.includes("over_email_send")
+            ? "Too many confirmation emails have been sent from this demo in the last hour. Use the demo account below to look around, or try again shortly."
+            : raw.includes("already registered") || raw.includes("already been registered")
+              ? "There is already an account with that email. Sign in instead."
+              : error.message,
       );
       setBusy(null);
       return;
