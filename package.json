@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify": "node --env-file=.env.local scripts/verify-setup.mjs",
+    "eval:personas": "tsx --env-file=.env.local scripts/eval-personas.mts",
+    "eval:report": "tsx --env-file=.env.local scripts/eval-report.mts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seed-demo.mts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

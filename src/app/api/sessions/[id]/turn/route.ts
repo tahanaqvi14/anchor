@@ -70,6 +70,22 @@ export async function POST(
     await appendMessage(supabase, id, user.id, userSeq + 1, "ai", result.output.reply);
     await saveLedger(supabase, loaded.session, result.update.ledger);
 
+    // A walk-away has to be persisted, not just reported to the client.
+    // Otherwise the session stays `active` in the database and reloading the
+    // page lets the user carry on negotiating with an opponent who already
+    // left. The report is generated separately, when they click through.
+    if (result.update.walked) {
+      await supabase
+        .from("sessions")
+        .update({
+          status: "completed",
+          outcome: "ai_walked",
+          final_value: null,
+          ended_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+    }
+
     const turnsLeft = MAX_USER_TURNS - result.update.ledger.turn;
 
     return NextResponse.json({
