@@ -21,8 +21,22 @@ export async function GET(request: Request) {
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+    return NextResponse.redirect(`${base(request, origin)}/login?error=auth_failed`);
   }
 
-  return NextResponse.redirect(`${origin}${destination}`);
+  return NextResponse.redirect(`${base(request, origin)}${destination}`);
+}
+
+/**
+ * Behind Vercel's proxy, `new URL(request.url).origin` is the internal
+ * upstream address rather than the public domain, so redirecting to it sends
+ * the user somewhere that does not exist publicly. The forwarded host is the
+ * domain the browser actually asked for.
+ */
+function base(request: Request, origin: string): string {
+  if (process.env.NODE_ENV === "development") return origin;
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (!forwardedHost) return origin;
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${forwardedHost}`;
 }

@@ -27,6 +27,17 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [checkInbox, setCheckInbox] = useState(false);
 
+  // The auth callback redirects here with ?error=... when a link fails.
+  // Without surfacing it, an expired or already-used confirmation link just
+  // returns a blank sign-in page and the user has no idea what went wrong.
+  const linkError = params.get("error");
+  const linkErrorMessage =
+    linkError === "auth_failed"
+      ? "That sign-in link did not work — it may have expired or already been used. Sign in below, or request a new one."
+      : linkError === "missing_code"
+        ? "That link was incomplete. Try signing in below."
+        : null;
+
   const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
   const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
@@ -121,7 +132,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <div className="space-y-5">
-      {error && <ErrorNote>{error}</ErrorNote>}
+      {(error || linkErrorMessage) && <ErrorNote>{error ?? linkErrorMessage}</ErrorNote>}
 
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Email">

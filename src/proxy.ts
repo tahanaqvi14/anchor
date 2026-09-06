@@ -13,6 +13,20 @@ const PROTECTED = ["/practice", "/dashboard", "/session"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function proxy(request: NextRequest) {
+  // Supabase appends ?code=... to the project's configured Site URL, which
+  // is the site ROOT — not to /auth/callback where our exchange handler
+  // lives. A confirmation or OAuth link therefore lands on "/" holding a
+  // code that nothing consumes, and the user sees the landing page (or, if
+  // Site URL is still localhost, a connection error) instead of being signed
+  // in. Forwarding any stray code to the handler makes the flow work
+  // regardless of exactly how the Supabase URL settings are configured.
+  const strayCode = request.nextUrl.searchParams.get("code");
+  if (strayCode && !request.nextUrl.pathname.startsWith("/auth/callback")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
