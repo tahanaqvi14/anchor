@@ -1,0 +1,44 @@
+# Keeps the Supabase free-tier project from pausing.
+#
+# Free projects are paused after seven days without database activity, and a
+# paused project needs a manual restore from the dashboard before the app
+# works again. For a portfolio link that someone might open weeks after the
+# last commit, that is the difference between a working demo and a dead one.
+#
+# Runs on GitHub Actions rather than Vercel Cron deliberately: it is free,
+# independent of the Vercel plan, and does not consume a Hobby cron slot.
+#
+# Required repository secrets:
+#   KEEPALIVE_URL     https://<your-app>.vercel.app/api/cron/keepalive
+#   CRON_SECRET       the same value as the app's CRON_SECRET env var
+
+name: Keepalive
+
+on:
+  schedule:
+    # 09:17 UTC on Mondays and Thursdays — comfortably inside the 7-day
+    # window even if one run is skipped. The odd minute avoids the top-of-hour
+    # congestion that makes GitHub delay scheduled jobs.
+    - cron: "17 9 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch the database
+        run: |
+          if [ -z "${{ secrets.KEEPALIVE_URL }}" ]; then
+            echo "KEEPALIVE_URL is not set; skipping."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.KEEPALIVE_URL }}")
+          echo "HTTP $status"
+          cat /tmp/body
+          echo
+          if [ "$status" != "200" ]; then
+            echo "::error::Keepalive failed — the Supabase project may be paused."
+            exit 1
+          fi

@@ -216,19 +216,29 @@ function assertInvariants(runs: RunSummary[]) {
   }
 
   // 3. The Professional must be stingier than the Closer on the same script.
+  //
+  // Measured in ACTUAL MONEY, not share of budget. Share of budget compares
+  // each persona against its own reservation, so the Professional — whose
+  // budget is a third of the Closer's — can concede the same number of
+  // dollars and look three times more generous. The user does not care what
+  // fraction of a hidden allowance moved; they care how much they got.
   for (const s of new Set(runs.map((r) => r.script))) {
     const prof = runs.find((r) => r.persona === "professional" && r.script === s);
     const closer = runs.find((r) => r.persona === "closer" && r.script === s);
-    if (prof && closer) {
-      if (prof.movedPct <= closer.movedPct) {
-        pass(
-          `on "${s}" the Professional moved ${prof.movedPct}% vs the Closer's ${closer.movedPct}%`,
-        );
-      } else {
-        fail(
-          `on "${s}" the Professional (${prof.movedPct}%) out-conceded the Closer (${closer.movedPct}%)`,
-        );
-      }
+    if (!prof || !closer) continue;
+
+    const profMoved = Math.abs(prof.final - prof.opening);
+    const closerMoved = Math.abs(closer.final - closer.opening);
+    const fmt = (n: number) => n.toLocaleString("en-US");
+
+    if (profMoved <= closerMoved) {
+      pass(
+        `on "${s}" the Professional gave ${fmt(profMoved)} vs the Closer's ${fmt(closerMoved)}`,
+      );
+    } else {
+      fail(
+        `on "${s}" the Professional gave ${fmt(profMoved)}, more than the Closer's ${fmt(closerMoved)}`,
+      );
     }
   }
 

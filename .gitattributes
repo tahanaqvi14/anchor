@@ -1,0 +1,13 @@
+# Normalise line endings so a Windows checkout and a Linux CI/Vercel build
+# produce identical trees. Without this, every file committed from Windows
+# shows as fully rewritten the first time it is touched elsewhere.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

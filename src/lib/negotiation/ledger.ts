@@ -143,7 +143,7 @@ export function applyTurn(
   } else if (modelWantsToWalk && patience <= WALK_PATIENCE_THRESHOLD) {
     walked = true;
     walkReason = "chose to end the conversation";
-  } else if (tactic === "hostile" && patience <= 40) {
+  } else if (tactic === "hostile" && patience <= 40 && playbook.walksOnHostility) {
     walked = true;
     walkReason = "ended it after the tone turned hostile";
   }

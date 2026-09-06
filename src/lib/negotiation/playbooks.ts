@@ -32,8 +32,18 @@ export interface Playbook {
   key: PersonaKey;
   /** Fraction of the gap this opponent will ever give up. */
   reservationFraction: number;
-  /** Opening position as a fraction of the gap, relative to current offer.
-   *  Negative re-anchors AWAY from the user's target. */
+  /**
+   * Opening position as a fraction of the gap, relative to the current
+   * offer. A negative value re-anchors AWAY from the user's target.
+   *
+   * All four sit at 0 today. Re-anchoring below an offer that already
+   * exists is a real tactic, but in play it made the opponent contradict
+   * the user's own setup — it would open by describing the standing offer
+   * as a number the user had never been given, which reads as a bug rather
+   * than as aggression. The personas are already separated by reservation
+   * fraction, patience and the tactic table; this lever cost coherence for
+   * differentiation that was available elsewhere.
+   */
   openingBias: number;
   /** Patience lost every turn regardless of what the user does. */
   patienceDrift: number;
@@ -44,6 +54,13 @@ export interface Playbook {
   responses: Record<Tactic, TacticResponse>;
   /** Prose describing when this opponent leaves the table. */
   walkAwayRule: string;
+  /**
+   * Whether sustained hostility ends the conversation. True for everyone
+   * except the Staller, whose entire identity is that an unresolved
+   * conversation costs it nothing — it absorbs abuse and keeps stalling,
+   * which is both more distinctive and more unpleasant to negotiate against.
+   */
+  walksOnHostility: boolean;
   /** Voice and behaviour. Written as instructions to the model. */
   persona: string;
 }
@@ -60,16 +77,16 @@ export const PLAYBOOKS: Record<PersonaKey, Playbook> = {
   lowballer: {
     key: "lowballer",
     reservationFraction: 0.35,
-    openingBias: -0.08, // re-anchors below where things already stood
+    openingBias: 0, // see note on Playbook.openingBias
     patienceDrift: -3,
     concessionSize: 0.3,
     firmHoldsBeforeMoving: 3,
     responses: {
       firm_hold: {
         patience: -8,
-        concede: 0,
+        concede: 0.15,
         instruction:
-          "They restated their number without flinching. Push back once more and question whether the number is realistic. Do not move yet.",
+          "They restated their number without flinching. Push back and question whether it is realistic. You may give a token amount to keep them talking, but nothing that closes the gap.",
       },
       concession: {
         patience: +5,
@@ -105,6 +122,7 @@ export const PLAYBOOKS: Record<PersonaKey, Playbook> = {
     },
     walkAwayRule:
       "You walk if they become abusive, or if after eight or more turns they have not moved at all and keep demanding a number far beyond you.",
+    walksOnHostility: true,
     persona: `You anchor hard and low, and you treat every number they say as an opening bid rather than a position.
 
 How you speak:
@@ -125,7 +143,7 @@ What you do NOT do:
     openingBias: 0,
     patienceDrift: -1, // barely wears down; delay costs them nothing
     concessionSize: 0.2,
-    firmHoldsBeforeMoving: 5,
+    firmHoldsBeforeMoving: 4,
     responses: {
       firm_hold: {
         patience: -2,
@@ -166,7 +184,8 @@ What you do NOT do:
       hostile: HOSTILE_UNIVERSAL,
     },
     walkAwayRule:
-      "You essentially never walk. You run the clock instead — an unresolved conversation costs you nothing and costs them a great deal.",
+      "You essentially never walk, even if they lose their temper. You run the clock instead — an unresolved conversation costs you nothing and costs them a great deal.",
+    walksOnHostility: false,
     persona: `You avoid committing to anything. Delay is not a symptom of your indecision; it is your tactic.
 
 How you speak:
@@ -229,6 +248,7 @@ What you do NOT do:
     },
     walkAwayRule:
       "You walk only if they turn abusive, and you do it courteously and finally. You do not threaten to leave; you simply conclude.",
+    walksOnHostility: true,
     persona: `You are polite, genuinely likeable, transparently reasonable — and you almost never move.
 
 How you speak:
@@ -248,7 +268,7 @@ Your effectiveness comes from them feeling the conversation went well.`,
   closer: {
     key: "closer",
     reservationFraction: 0.55, // will move furthest — if you survive the pressure
-    openingBias: -0.05,
+    openingBias: 0,
     patienceDrift: -7, // burns down fast; this opponent is genuinely losable
     concessionSize: 0.45,
     firmHoldsBeforeMoving: 2,
@@ -293,6 +313,7 @@ Your effectiveness comes from them feeling the conversation went well.`,
     },
     walkAwayRule:
       "You walk fast. If they refuse two offers you have labelled final, you end it — and you do actually end it. This opponent can genuinely be lost.",
+    walksOnHostility: true,
     persona: `You manufacture urgency and force binary choices. Every offer has an expiry.
 
 How you speak:

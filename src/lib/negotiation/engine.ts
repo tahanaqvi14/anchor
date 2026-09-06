@@ -47,7 +47,7 @@ export interface TurnResult {
  * request, so it is surfaced immediately rather than retried into a
  * timeout.
  */
-const RETRY_DELAYS_MS = [900, 2600, 6500];
+export const RETRY_DELAYS_MS = [900, 2600, 6500];
 
 export class QuotaExhaustedError extends Error {
   constructor() {
@@ -56,7 +56,7 @@ export class QuotaExhaustedError extends Error {
   }
 }
 
-function classify(e: unknown): "rate" | "quota" | "fatal" {
+export function classifyGeminiError(e: unknown): "rate" | "quota" | "fatal" {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
   if (msg.includes("per day") || msg.includes("daily limit")) return "quota";
   if (
@@ -71,7 +71,7 @@ function classify(e: unknown): "rate" | "quota" | "fatal" {
   return "fatal";
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let client: GoogleGenAI | null = null;
 function ai(): GoogleGenAI {
@@ -135,7 +135,7 @@ export async function runTurn(
       failure = `schema: ${candidate.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")} | finish=${res.candidates?.[0]?.finishReason}`;
       break; // a schema miss will not fix itself on retry
     } catch (e) {
-      const kind = classify(e);
+      const kind = classifyGeminiError(e);
       if (kind === "quota") throw new QuotaExhaustedError();
       failure = e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200);
       if (kind !== "rate" || attempt === RETRY_DELAYS_MS.length) break;
