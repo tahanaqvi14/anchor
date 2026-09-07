@@ -266,8 +266,25 @@ export async function generateReport(
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
-  const model = process.env.GEMINI_REPORT_MODEL ?? "gemini-3.8-flash";
+  /**
+   * The report model is the better one, and it is also the one that gets
+   * overloaded: observed returning 503 UNAVAILABLE ("experiencing high
+   * demand") repeatedly in production, long enough that a few seconds of
+   * backoff does not outlast the spike. Since the report is the whole point
+   * of a finished session, an overloaded model must not be the difference
+   * between feedback and none.
+   *
+   * So capacity is treated as a separate axis from retrying: exhaust the
+   * preferred model, then fall through to the turn model, which is a
+   * different capacity pool. A slightly less incisive report beats a 502.
+   * Whichever produced it is recorded on the row.
+   */
+  const preferred = process.env.GEMINI_REPORT_MODEL ?? "gemini-3.8-flash";
+  const fallback = process.env.GEMINI_CHAT_MODEL ?? "gemini-3.5-flash-lite";
+  const models = preferred === fallback ? [preferred] : [preferred, fallback];
+
   const ai = new GoogleGenAI({ apiKey });
+  let model = preferred;
 
   const numbered: NumberedMessage[] = transcript.map((m, i) => ({
     seq: i + 1,
@@ -279,64 +296,79 @@ export async function generateReport(
     report: GeneratedReport;
     verified: ReturnType<typeof verifyReport>;
     raw: unknown;
+    model: string;
   } | null = null;
 
-  const MAX_ATTEMPTS = 3;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const retryNote =
-      attempt === 0
-        ? undefined
-        : "Your previous attempt quoted text that does not appear in the transcript. Re-read it and copy quotes exactly, character for character, from messages marked THEM.";
+  let lastError: unknown = null;
 
-    let parsed: GeneratedReport | null = null;
-    let raw: unknown = null;
+  // The whole route runs under a 60s function limit and each call costs
+  // 10-20s, so the budget is roughly three calls: two on the preferred
+  // model, then one on the fallback.
+  outer: for (const [index, candidate] of models.entries()) {
+    const attempts = index === 0 ? 2 : 1;
 
-    try {
-      const res = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts: [{ text: "Write the report." }] }],
-        config: {
-          systemInstruction: buildPrompt(ctx, numbered, outcome, finalValue, retryNote),
-          responseMimeType: "application/json",
-          responseSchema: REPORT_SCHEMA,
-          temperature: 0.4, // analysis, not improvisation
-          maxOutputTokens: 3000,
-        },
-      });
-      raw = JSON.parse(res.text ?? "{}");
-      const candidate = ReportSchema.safeParse(raw);
-      if (candidate.success) parsed = candidate.data;
-      else if (process.env.ANCHOR_DEBUG || process.env.NODE_ENV !== "production") {
-        console.error(
-          "[report] schema rejected:",
-          candidate.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; "),
-          "| finish=",
-          res.candidates?.[0]?.finishReason,
-        );
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const retryNote =
+        attempt === 0
+          ? undefined
+          : "Your previous attempt quoted text that does not appear in the transcript. Re-read it and copy quotes exactly, character for character, from messages marked THEM.";
+
+      let parsed: GeneratedReport | null = null;
+      let raw: unknown = null;
+
+      try {
+        const res = await ai.models.generateContent({
+          model: candidate,
+          contents: [{ role: "user", parts: [{ text: "Write the report." }] }],
+          config: {
+            systemInstruction: buildPrompt(ctx, numbered, outcome, finalValue, retryNote),
+            responseMimeType: "application/json",
+            responseSchema: REPORT_SCHEMA,
+            temperature: 0.4, // analysis, not improvisation
+            maxOutputTokens: 3000,
+          },
+        });
+        raw = JSON.parse(res.text ?? "{}");
+        const result = ReportSchema.safeParse(raw);
+        if (result.success) parsed = result.data;
+        else if (process.env.ANCHOR_DEBUG || process.env.NODE_ENV !== "production") {
+          console.error(
+            "[report] schema rejected:",
+            result.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; "),
+            "| finish=",
+            res.candidates?.[0]?.finishReason,
+          );
+        }
+      } catch (e) {
+        lastError = e;
+        const kind = classifyGeminiError(e);
+        if (kind === "quota") throw new QuotaExhaustedError();
+
+        // Retry the same model only while attempts remain; otherwise fall
+        // through to the next model rather than burning the budget waiting
+        // on capacity that is not coming back.
+        if (kind === "rate" && attempt < attempts - 1) {
+          await sleep(RETRY_DELAYS_MS[attempt] + Math.random() * 400);
+          continue;
+        }
+        break;
       }
-    } catch (e) {
-      const kind = classifyGeminiError(e);
-      if (kind === "quota") throw new QuotaExhaustedError();
-      if (attempt === MAX_ATTEMPTS - 1) throw e;
-      // A 503 means the model is momentarily overloaded, and retrying with
-      // no delay just hits the same spike — which is exactly how the first
-      // version of this failed. Back off before trying again.
-      if (kind === "rate") await sleep(RETRY_DELAYS_MS[attempt] + Math.random() * 400);
-      continue;
+
+      if (!parsed) continue;
+
+      const verified = verifyReport(parsed, numbered);
+      if (!best || verified.rejected < best.verified.rejected) {
+        best = { report: parsed, verified, raw, model: candidate };
+      }
+
+      // Good enough: two of each survived verification.
+      if (verified.strengths.length >= 2 && verified.missteps.length >= 2) break outer;
     }
-
-    if (!parsed) continue;
-
-    const verified = verifyReport(parsed, numbered);
-    if (!best || verified.rejected < best.verified.rejected) {
-      best = { report: parsed, verified, raw };
-    }
-
-    // Good enough: two of each survived verification.
-    if (verified.strengths.length >= 2 && verified.missteps.length >= 2) break;
   }
 
-  if (!best) throw new Error("Report generation failed after retry");
+  if (!best) throw lastError ?? new Error("Report generation failed on every model");
+
+  model = best.model;
 
   const score = scoreOutcome(ctx, finalValue, outcome);
 
