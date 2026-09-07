@@ -12,21 +12,27 @@ import { usePathname } from "next/navigation";
  * feeling this exists to remove.
  *
  * The App Router exposes no router-event API, so this listens for clicks on
- * internal links. Crucially, whether the bar is showing is DERIVED from
- * comparing the pending path against the current one rather than cleared by
- * an effect: when the navigation lands, `pathname` becomes the pending path
- * and the bar switches off on its own. No effect writes state, so there is
- * no cascading render and no way for the two to disagree.
+ * internal links. Whether the bar shows is DERIVED rather than cleared by an
+ * effect, so no effect writes state and the two can never disagree.
+ *
+ * It tracks the path the click STARTED from, not the path it was aimed at.
+ * An earlier version compared against the destination and hung whenever a
+ * navigation was redirected — clicking "Create an account" while already
+ * signed in is bounced from /signup to /practice, so the bar waited forever
+ * for a /signup that never arrived. Leaving the current page is the thing
+ * being waited on, and that is what is measured.
  */
 export function NavProgress() {
   const pathname = usePathname();
 
-  const [pendingPath, setPendingPath] = useState<string | null>(null);
+  const [fromPath, setFromPath] = useState<string | null>(null);
   const [armed, setArmed] = useState(false);
   const timers = useRef<number[]>([]);
 
-  // Derived, never assigned from an effect.
-  const active = armed && pendingPath !== null && pendingPath !== pathname;
+  // Derived, never assigned from an effect. Still on the page the click
+  // started from means the navigation is still in flight; landing anywhere
+  // else — including a redirect target — ends it.
+  const active = armed && fromPath !== null && pathname === fromPath;
 
   useEffect(() => {
     function clearTimers() {
@@ -53,19 +59,20 @@ export function NavProgress() {
       if (url.pathname === window.location.pathname) return; // nothing to wait for
 
       clearTimers();
-      setPendingPath(url.pathname);
+      setFromPath(window.location.pathname);
       setArmed(false);
 
       // A short delay keeps instant, prefetched navigations from flashing a
       // bar that appears and vanishes, which reads as a glitch.
       timers.current.push(window.setTimeout(() => setArmed(true), 80));
-      // Hard stop. A bar that sticks at 90% because a navigation was
-      // cancelled is worse than never showing one at all.
+      // Hard stop, for a navigation that is cancelled or that redirects
+      // straight back to where it started. A bar stuck at 90% is worse than
+      // no bar at all.
       timers.current.push(
         window.setTimeout(() => {
           setArmed(false);
-          setPendingPath(null);
-        }, 10_000),
+          setFromPath(null);
+        }, 8_000),
       );
     }
 
