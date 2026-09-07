@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
+import { NavProgress } from "@/components/nav-progress";
 import "./globals.css";
 
 /* Display: Fraunces, with the WONK and SOFT axes loaded so headlines get
@@ -82,7 +84,14 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {/* Covers every route, including the landing page, where the first
+            click a visitor makes is the one that must not feel dead. */}
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

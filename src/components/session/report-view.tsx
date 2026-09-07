@@ -14,6 +14,7 @@ import type {
   ReportCitation,
 } from "@/lib/supabase/database.types";
 import type { RoomMessage } from "./negotiation-room";
+import { PositionTrack } from "@/components/position-track";
 
 /** Prose fields go through Markdown so emphasis and lists survive, but the
  *  element set is deliberately tiny — a report is not a document. */
@@ -48,6 +49,7 @@ export function ReportView({
   target,
   finalValue,
   outcome,
+  openingAnchor,
 }: {
   report: FeedbackReportRow;
   messages: RoomMessage[];
@@ -58,6 +60,7 @@ export function ReportView({
   target: number;
   finalValue: number | null;
   outcome: string | null;
+  openingAnchor: number | null;
 }) {
   const reduced = useReducedMotion();
   const rise = (i: number) =>
@@ -92,21 +95,25 @@ export function ReportView({
     <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       {/* Verdict */}
       <motion.header {...rise(0)}>
-        <p className="eyebrow">
-          {scenarioTitle} &middot; {personaTitle}
-        </p>
-        <h1 className="display mt-3 text-[clamp(1.8rem,4.5vw,2.6rem)] font-semibold text-balance">
+        <div className="flex items-center gap-3">
+          <span className="index">RPT</span>
+          <span className="h-px w-8 bg-rule-strong" />
+          <span className="label">
+            {scenarioTitle} &middot; {personaTitle}
+          </span>
+        </div>
+        <h1 className="display-xl mt-6 text-[clamp(2rem,5.5vw,3.6rem)] text-balance">
           {report.headline}
         </h1>
       </motion.header>
 
       <motion.div
         {...rise(1)}
-        className="mt-7 flex flex-wrap items-end gap-x-10 gap-y-5 rounded-xl border border-rule bg-paper-raised p-6"
+        className="mt-8 flex flex-wrap items-end gap-x-10 gap-y-5 border-y-2 border-rule-strong py-6"
       >
         <div>
-          <p className="eyebrow">Outcome</p>
-          <p className="display mt-1.5 text-[1.5rem] font-semibold">{outcomeLabel}</p>
+          <p className="label">Outcome</p>
+          <p className="display mt-2 text-[1.8rem] font-semibold">{outcomeLabel}</p>
           {report.target_delta !== null && (
             <p
               className={`tnum mt-1 text-[13px] ${
@@ -119,29 +126,44 @@ export function ReportView({
           )}
         </div>
 
-        <div className="ml-auto flex items-end gap-6">
+        <div className="ml-auto flex items-end gap-8">
           <div className="text-right">
-            <p className="eyebrow">Target</p>
-            <p className="tnum mt-1 text-[15px] text-ink-muted">
+            <p className="label">Target</p>
+            <p className="tnum mt-1.5 text-[15px] text-ink-muted">
               {money(target, unit, unitSuffix)}
             </p>
           </div>
           <div className="text-right">
-            <p className="eyebrow">Score</p>
-            <p className="tnum mt-1 text-[2.4rem] font-medium leading-none text-ink">
+            <p className="label">Score</p>
+            <p className="tnum mt-1 text-[3.4rem] font-medium leading-none text-ink">
               {report.score}
             </p>
           </div>
         </div>
       </motion.div>
 
-      <motion.div {...rise(2)} className="mt-6">
+      {/* The same axis the negotiation was fought on, now settled. Seeing
+          how little of the gap closed lands harder than the score does. */}
+      {openingAnchor !== null && (
+        <motion.div {...rise(2)} className="mt-8">
+          <PositionTrack
+            anchor={openingAnchor}
+            current={finalValue ?? openingAnchor}
+            target={target}
+            unit={unit}
+            unitSuffix={unitSuffix}
+            size="lg"
+          />
+        </motion.div>
+      )}
+
+      <motion.div {...rise(3)} className="mt-8">
         <Prose>{report.outcome_summary}</Prose>
       </motion.div>
 
       {/* Missteps first — that is the part worth reading. */}
       {report.missteps.length > 0 && (
-        <Section title="What cost you" index={3} rise={rise}>
+        <Section title="What cost you" index={4} rise={rise}>
           {report.missteps.map((m, i) => (
             <Citation key={i} item={m} tone="walk" onJump={jumpTo} />
           ))}
@@ -149,7 +171,7 @@ export function ReportView({
       )}
 
       {report.alternative_phrasings.length > 0 && (
-        <Section title="What to say instead" index={4} rise={rise}>
+        <Section title="What to say instead" index={5} rise={rise}>
           {report.alternative_phrasings.map((a, i) => (
             <Alternative key={i} item={a} onJump={jumpTo} />
           ))}
@@ -157,14 +179,14 @@ export function ReportView({
       )}
 
       {report.strengths.length > 0 && (
-        <Section title="What worked" index={5} rise={rise}>
+        <Section title="What worked" index={6} rise={rise}>
           {report.strengths.map((s, i) => (
             <Citation key={i} item={s} tone="deal" onJump={jumpTo} />
           ))}
         </Section>
       )}
 
-      <motion.div {...rise(6)} className="mt-10 flex flex-wrap gap-3">
+      <motion.div {...rise(7)} className="mt-12 flex flex-wrap gap-3">
         <LinkButton href="/practice">
           Run it again
           <ArrowRight className="size-4" strokeWidth={2} />
@@ -175,26 +197,28 @@ export function ReportView({
       </motion.div>
 
       {/* Full transcript, the target of every citation link. */}
-      <motion.section {...rise(7)} className="mt-14">
-        <h2 className="eyebrow">Full transcript</h2>
-        <div className="mt-4 space-y-4">
+      <motion.section {...rise(8)} className="mt-16">
+        <h2 className="label label-strong border-b border-rule-strong pb-2.5">Full transcript</h2>
+        <div className="mt-5 space-y-5">
           {messages.map((m) => (
             <div
               key={m.seq}
               id={`t-${m.seq}`}
-              className="scroll-mt-24 rounded-lg px-3 py-2 transition-shadow"
+              className="flex scroll-mt-24 gap-4 py-1 transition-shadow"
             >
-              <div className="mb-1 flex items-baseline gap-2">
-                <span
-                  className={`text-[11px] font-semibold uppercase tracking-wider ${
-                    m.role === "user" ? "text-brass" : "text-steel"
-                  }`}
-                >
+              <div className="w-11 shrink-0 pt-0.5 text-right">
+                <div className="index">{String(m.seq).padStart(2, "0")}</div>
+                <div className={`label mt-1 ${m.role === "user" ? "text-brass" : "text-steel"}`}>
                   {m.role === "user" ? "You" : "Them"}
-                </span>
-                <span className="tnum text-[10.5px] text-ink-faint">#{m.seq}</span>
+                </div>
               </div>
-              <p className="text-[14px] leading-relaxed text-ink-muted">{m.content}</p>
+              <p
+                className={`min-w-0 flex-1 border-l-2 pl-4 text-[14px] leading-[1.6] text-ink-muted ${
+                  m.role === "user" ? "border-brass" : "border-rule"
+                }`}
+              >
+                {m.content}
+              </p>
             </div>
           ))}
         </div>
@@ -215,9 +239,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <motion.section {...rise(index)} className="mt-10">
-      <h2 className="eyebrow">{title}</h2>
-      <div className="mt-4 space-y-4">{children}</div>
+    <motion.section {...rise(index)} className="mt-12">
+      <h2 className="label label-strong border-b border-rule-strong pb-2.5">{title}</h2>
+      <div className="mt-5 space-y-5">{children}</div>
     </motion.section>
   );
 }
@@ -232,10 +256,10 @@ function Citation({
   onJump: (seq: number) => void;
 }) {
   return (
-    <article className="rounded-xl border border-rule bg-paper-raised p-5">
-      <div className="flex flex-wrap items-center gap-2.5">
+    <article className="border-b border-rule pb-6">
+      <div className="flex flex-wrap items-center gap-3">
         <span
-          className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider ${
+          className={`label px-2 py-1 ${
             tone === "walk" ? "bg-walk-wash text-walk" : "bg-deal-wash text-deal"
           }`}
         >
@@ -243,13 +267,13 @@ function Citation({
         </span>
         <button
           onClick={() => onJump(item.message_seq)}
-          className="tnum text-[12px] text-ink-faint underline decoration-dotted underline-offset-4 transition-colors hover:text-ink"
+          className="label transition-colors hover:text-ink"
         >
-          Message #{item.message_seq}
+          Message {String(item.message_seq).padStart(2, "0")} &rarr;
         </button>
       </div>
 
-      <h3 className="mt-3.5 text-[15.5px] font-semibold text-ink text-pretty">{item.title}</h3>
+      <h3 className="mt-4 text-[16.5px] font-semibold text-ink text-pretty">{item.title}</h3>
 
       <blockquote className="mt-3 flex gap-3 border-l-2 border-rule-strong pl-4">
         <Quote className="mt-1 size-3.5 shrink-0 text-ink-faint" strokeWidth={2} />
@@ -271,21 +295,21 @@ function Alternative({
   onJump: (seq: number) => void;
 }) {
   return (
-    <article className="rounded-xl border border-rule bg-paper-raised p-5">
+    <article className="border-b border-rule pb-6">
       <button
         onClick={() => onJump(item.message_seq)}
-        className="tnum text-[12px] text-ink-faint underline decoration-dotted underline-offset-4 transition-colors hover:text-ink"
+        className="label transition-colors hover:text-ink"
       >
-        Message #{item.message_seq}
+        Message {String(item.message_seq).padStart(2, "0")} &rarr;
       </button>
 
-      <p className="mt-3 text-[13px] text-ink-faint">You said</p>
+      <p className="label mt-4">You said</p>
       <p className="mt-1 text-[14px] italic leading-relaxed text-ink-muted">
         &ldquo;{item.you_said}&rdquo;
       </p>
 
-      <div className="mt-4 rounded-lg border border-brass/30 bg-brass-wash p-4">
-        <p className="eyebrow flex items-center gap-1.5 text-brass">
+      <div className="mt-4 border-l-2 border-brass bg-brass-wash p-4">
+        <p className="label flex items-center gap-1.5 text-brass">
           <Target className="size-3" strokeWidth={2.5} />
           Try instead
         </p>

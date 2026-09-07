@@ -9,6 +9,7 @@ import { PERSONAS } from "@/lib/personas";
 import type { PersonaKey } from "@/lib/personas";
 import { speak, stopSpeaking, useDictation, useSpeechSupported } from "@/lib/voice";
 import { Button, ErrorNote, money } from "@/components/ui/primitives";
+import { PositionTrack } from "@/components/position-track";
 import type { SessionOutcome } from "@/lib/supabase/database.types";
 
 export interface RoomMessage {
@@ -161,45 +162,47 @@ export function NegotiationRoom({
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
-      {/* Standing position — the number that matters, always visible. */}
+      {/* The live axis. Watching the marker refuse to move is the product,
+          so it gets the top of the screen rather than a figure in a corner. */}
       <div className="border-b border-rule bg-paper-sunken">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 sm:px-8">
-          <div className="min-w-0">
-            <p className="eyebrow truncate">{scenarioTitle}</p>
-            <p className="mt-0.5 truncate text-[13px] font-medium text-steel">{persona.title}</p>
+        <div className="mx-auto max-w-3xl px-5 py-3.5 sm:px-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <p className="label label-strong truncate">{scenarioTitle}</p>
+            <p className="label truncate text-steel">{persona.title}</p>
           </div>
-
-          <div className="ml-auto flex items-center gap-5">
-            <div className="text-right">
-              <p className="eyebrow">On the table</p>
-              <p className="tnum mt-0.5 text-[15px] font-medium text-ink">
-                {money(position, unit, unitSuffix)}
-              </p>
-            </div>
-            <div className="hidden text-right sm:block">
-              <p className="eyebrow">Your target</p>
-              <p className="tnum mt-0.5 text-[15px] font-medium text-brass">
-                {money(target, unit, unitSuffix)}
-              </p>
-            </div>
-          </div>
+          <PositionTrack
+            anchor={currentOffer}
+            current={position}
+            target={target}
+            unit={unit}
+            unitSuffix={unitSuffix}
+            size="sm"
+            showLabels={false}
+          />
         </div>
       </div>
 
       {/* Transcript */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6 sm:px-8">
-          <p className="mb-6 text-center text-[12.5px] text-ink-faint">
-            They opened at {money(currentOffer, unit, unitSuffix)}. You want{" "}
-            {money(target, unit, unitSuffix)}.
-          </p>
+          <div className="mb-8 flex items-center gap-3 border-b border-rule pb-4">
+            <span className="label">Opened</span>
+            <span className="tnum text-[13px] text-ink-muted">
+              {money(currentOffer, unit, unitSuffix)}
+            </span>
+            <span className="h-px flex-1 bg-rule" />
+            <span className="label">Target</span>
+            <span className="tnum text-[13px] font-medium text-brass">
+              {money(target, unit, unitSuffix)}
+            </span>
+          </div>
 
           <div className="space-y-5">
             {messages.map((m) => (
-              <Bubble key={m.seq} message={m} personaName={persona.shortName} reduced={!!reduced} />
+              <Bubble key={m.seq} message={m} reduced={!!reduced} />
             ))}
 
-            {thinking && <Thinking name={persona.shortName} />}
+            {thinking && <Thinking />}
           </div>
 
           <AnimatePresence>
@@ -207,9 +210,9 @@ export function NegotiationRoom({
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-8 rounded-xl border border-rule bg-paper-raised p-5 text-center"
+                className="mt-10 border-t-2 border-rule-strong pt-6 text-center"
               >
-                <p className="display text-[1.2rem] font-semibold">
+                <p className="display text-[1.5rem] font-semibold">
                   {endReason ?? "This negotiation has ended."}
                 </p>
                 <p className="mt-1.5 text-[13.5px] text-ink-muted">
@@ -248,7 +251,7 @@ export function NegotiationRoom({
             )}
 
             {outOfTurns ? (
-              <div className="rounded-lg border border-rule bg-paper-sunken px-4 py-3 text-center text-[13.5px] text-ink-muted">
+              <div className="border border-rule bg-paper-sunken px-4 py-3.5 text-center text-[13.5px] text-ink-muted">
                 You have used all your turns. Close it out below.
               </div>
             ) : (
@@ -267,7 +270,7 @@ export function NegotiationRoom({
                     }}
                     placeholder={dictation.listening ? "Listening..." : "Make your case..."}
                     disabled={thinking}
-                    className="max-h-40 w-full resize-none rounded-xl border border-rule bg-paper-raised py-3 pl-4 pr-12 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/20 disabled:opacity-60"
+                    className="max-h-40 w-full resize-none border border-rule bg-paper-raised py-3.5 pl-4 pr-12 text-[15px] leading-relaxed text-ink transition-colors placeholder:text-ink-faint focus:border-brass focus:outline-none disabled:opacity-60"
                     style={{ minHeight: "3rem" }}
                   />
                   {dictation.supported && (
@@ -276,10 +279,10 @@ export function NegotiationRoom({
                       onClick={dictation.listening ? dictation.stop : dictation.start}
                       disabled={thinking}
                       aria-label={dictation.listening ? "Stop dictating" : "Dictate your reply"}
-                      className={`absolute bottom-2.5 right-2.5 grid size-8 place-items-center rounded-full transition-colors disabled:opacity-40 ${
+                      className={`absolute bottom-3 right-3 grid size-7 place-items-center transition-colors disabled:opacity-40 ${
                         dictation.listening
                           ? "bg-walk text-paper"
-                          : "text-ink-faint hover:bg-paper-sunken hover:text-ink"
+                          : "text-ink-faint hover:text-ink"
                       }`}
                     >
                       {dictation.listening ? (
@@ -295,15 +298,17 @@ export function NegotiationRoom({
                   onClick={send}
                   disabled={!canSend}
                   aria-label="Send"
-                  className="h-12 w-12 shrink-0 !px-0"
+                  className="h-[3.4rem] w-[3.4rem] shrink-0 !px-0"
                 >
                   <Send className="size-4" strokeWidth={2} />
                 </Button>
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-ink-faint">
-              <span className="tnum">{turnsLeft} turn{turnsLeft === 1 ? "" : "s"} left</span>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+              <span className="label">
+                {turnsLeft} turn{turnsLeft === 1 ? "" : "s"} left
+              </span>
 
               {canSpeak && (
                 <button
@@ -311,7 +316,7 @@ export function NegotiationRoom({
                     setReadAloud((v) => !v);
                     if (readAloud) stopSpeaking();
                   }}
-                  className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
+                  className="label inline-flex items-center gap-1.5 transition-colors hover:text-ink"
                 >
                   {readAloud ? (
                     <Volume2 className="size-3.5 text-brass" strokeWidth={1.75} />
@@ -324,7 +329,7 @@ export function NegotiationRoom({
 
               <button
                 onClick={() => setShowEndPanel((v) => !v)}
-                className="ml-auto transition-colors hover:text-ink"
+                className="label ml-auto transition-colors hover:text-ink"
               >
                 End negotiation
               </button>
@@ -375,11 +380,9 @@ export function NegotiationRoom({
 
 function Bubble({
   message,
-  personaName,
   reduced,
 }: {
   message: RoomMessage;
-  personaName: string;
   reduced: boolean;
 }) {
   const mine = message.role === "user";
@@ -391,36 +394,38 @@ function Bubble({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="scroll-mt-24"
     >
-      <div className="mb-1 flex items-baseline gap-2">
-        <span
-          className={`text-[11px] font-semibold uppercase tracking-wider ${
-            mine ? "text-brass" : "text-steel"
+      {/* Indexed transcript lines rather than chat bubbles. The gutter
+          number is what the report cites, so it belongs in how a message is
+          read, not in a tooltip. */}
+      <div className="flex gap-4">
+        <div className="w-12 shrink-0 pt-0.5 text-right">
+          <div className="index">{String(message.seq).padStart(2, "0")}</div>
+          {/* "Them", not the persona name: the gutter is a fixed narrow
+              column and a name like "Professional" overflows it into the
+              message body. The opponent is identified in the header. */}
+          <div className={`label mt-1 ${mine ? "text-brass" : "text-steel"}`}>
+            {mine ? "You" : "Them"}
+          </div>
+        </div>
+        <div
+          className={`min-w-0 flex-1 border-l-2 pl-4 text-[14.5px] leading-[1.6] ${
+            mine ? "border-brass text-ink" : "border-rule text-ink-muted"
           }`}
         >
-          {mine ? "You" : personaName}
-        </span>
-        <span className="tnum text-[10.5px] text-ink-faint">#{message.seq}</span>
-      </div>
-      <div
-        className={`rounded-xl border px-4 py-3 text-[14.5px] leading-relaxed ${
-          mine
-            ? "border-brass/25 bg-brass-wash text-ink"
-            : "border-rule bg-paper-raised text-ink-muted"
-        }`}
-      >
-        {message.content}
+          {message.content}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-function Thinking({ name }: { name: string }) {
+function Thinking() {
   return (
-    <div>
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-steel">
-        {name}
+    <div className="flex gap-4">
+      <div className="w-12 shrink-0 pt-0.5 text-right">
+        <div className="label text-steel">Them</div>
       </div>
-      <div className="inline-flex items-center gap-1.5 rounded-xl border border-rule bg-paper-raised px-4 py-3.5">
+      <div className="inline-flex items-center gap-1.5 border-l-2 border-rule py-1 pl-4">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -428,7 +433,7 @@ function Thinking({ name }: { name: string }) {
             style={{ animationDelay: `${i * 140}ms`, animationDuration: "1s" }}
           />
         ))}
-        <span className="ml-1.5 text-[12.5px] text-ink-faint">considering their position</span>
+        <span className="label ml-2">considering their position</span>
       </div>
     </div>
   );

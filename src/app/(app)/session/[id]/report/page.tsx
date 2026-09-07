@@ -58,6 +58,7 @@ export default async function ReportPage({
       target={session.target_value ?? 0}
       finalValue={session.final_value}
       outcome={session.outcome}
+      openingAnchor={session.opening_anchor}
     />
   );
 }

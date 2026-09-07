@@ -116,7 +116,9 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
         initial: { opacity: 0, x: 16 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -16 },
-        transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const },
+        // mode="wait" runs exit then enter, so this duration is paid twice
+        // between steps. Kept short for that reason.
+        transition: { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const },
       };
 
   return (
@@ -126,7 +128,7 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
       <AnimatePresence mode="wait" initial={false}>
         {step === "scenario" && (
           <motion.div key="scenario" {...slide}>
-            <h2 className="display mt-8 text-[clamp(1.7rem,4vw,2.3rem)] font-semibold">
+            <h2 className="display-xl mt-8 text-[clamp(1.9rem,4.5vw,2.9rem)]">
               What are you negotiating?
             </h2>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -160,7 +162,7 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
 
         {step === "persona" && (
           <motion.div key="persona" {...slide}>
-            <h2 className="display mt-8 text-[clamp(1.7rem,4vw,2.3rem)] font-semibold">
+            <h2 className="display-xl mt-8 text-[clamp(1.9rem,4.5vw,2.9rem)]">
               Who are you up against?
             </h2>
             <p className="mt-2 text-[15px] text-ink-muted">
@@ -187,7 +189,7 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
 
         {step === "context" && (
           <motion.div key="context" {...slide}>
-            <h2 className="display mt-8 text-[clamp(1.7rem,4vw,2.3rem)] font-semibold">
+            <h2 className="display-xl mt-8 text-[clamp(1.9rem,4.5vw,2.9rem)]">
               Set the stakes.
             </h2>
             <p className="mt-2 text-[15px] text-ink-muted">
@@ -262,16 +264,12 @@ function Steps({ current }: { current: Step }) {
   const idx = order.indexOf(current);
 
   return (
-    <ol className="flex items-center gap-2 text-[12px]">
+    <ol className="flex items-center gap-2">
       {order.map((s, i) => (
         <li key={s} className="flex items-center gap-2">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
-              i === idx
-                ? "bg-brass-wash text-brass"
-                : i < idx
-                  ? "text-ink-muted"
-                  : "text-ink-faint"
+            className={`label inline-flex items-center gap-1.5 px-2 py-1 ${
+              i === idx ? "bg-brass-wash text-brass" : i < idx ? "text-ink" : "text-ink-faint"
             }`}
           >
             {i < idx ? <Check className="size-3" strokeWidth={2.5} /> : null}
@@ -288,7 +286,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mt-8 inline-flex items-center gap-1.5 text-[13.5px] text-ink-muted transition-colors hover:text-ink"
+      className="label mt-10 inline-flex items-center gap-1.5 transition-colors hover:text-ink"
     >
       <ArrowLeft className="size-3.5" strokeWidth={2} />
       Back
@@ -314,12 +312,14 @@ function Card({
   return (
     <button
       onClick={onClick}
-      className={`group flex h-full flex-col rounded-xl border p-5 text-left transition-all hover:-translate-y-px hover:shadow-[var(--shadow-md)] ${
-        selected ? "border-brass bg-brass-wash" : "border-rule bg-paper-raised hover:border-rule-strong"
+      className={`group flex h-full flex-col border p-5 text-left transition-all duration-150 active:scale-[0.99] active:transition-none ${
+        selected
+          ? "border-brass bg-brass-wash"
+          : "border-rule bg-paper-raised hover:border-rule-strong"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="display text-[1.15rem] font-semibold leading-tight text-balance">
+        <h3 className="display text-[1.25rem] font-semibold leading-tight text-balance">
           {icon && <span className="mr-2 inline-block align-middle text-ink-muted">{icon}</span>}
           {title}
         </h3>

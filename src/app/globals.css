@@ -18,9 +18,9 @@
 
 :root {
   /* surfaces */
-  --paper:         #faf8f5;
-  --paper-raised:  #ffffff;
-  --paper-sunken:  #f2eee7;
+  --paper:         #f5f2ec;
+  --paper-raised:  #fffefb;
+  --paper-sunken:  #eae5db;
 
   /* text */
   --ink:           #14120f;
@@ -28,8 +28,8 @@
   --ink-faint:     #9a9188;
 
   /* structure */
-  --rule:          #e5e0d8;
-  --rule-strong:   #d3ccc0;
+  --rule:          #ddd6c9;
+  --rule-strong:   #14120f;   /* hairlines that actually read as drawn */
 
   /* you */
   --brass:         #b5781f;
@@ -53,16 +53,16 @@
 }
 
 .dark {
-  --paper:         #0d0c0b;
-  --paper-raised:  #171513;
-  --paper-sunken:  #080807;
+  --paper:         #0a0a09;
+  --paper-raised:  #141312;
+  --paper-sunken:  #050504;
 
   --ink:           #f5f1ea;
   --ink-muted:     #9a9286;
   --ink-faint:     #6a635a;
 
-  --rule:          #272320;
-  --rule-strong:   #3a3531;
+  --rule:          #2a2622;
+  --rule-strong:   #f5f1ea;
 
   --brass:         #e0a742;
   --brass-bright:  #f0bd63;
@@ -192,6 +192,74 @@ body {
   background-size: 100% 1px;
   background-repeat: no-repeat;
   background-position: bottom;
+}
+
+/* ============================================================
+   Editorial system
+   Type is the architecture here, not decoration sitting on top of
+   boxes. Monospace carries every label, index and figure — money is
+   monospace, so the whole interface speaks in that register — while
+   the serif is reserved for statements that need weight.
+   ============================================================ */
+
+/* Oversized display. Viewport-scaled so a headline spans the measure
+   rather than sitting politely inside it. */
+.display-xl {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+}
+
+/* The workhorse label. Replaces .eyebrow across the app: uppercase
+   mono at small size, which is what makes an interface read as an
+   instrument rather than a brochure. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.label-strong {
+  color: var(--ink);
+}
+
+/* Marginal index, as in a case file: 01 / 02 / 03 down the gutter. */
+.index {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+/* Paper grain. Flat colour fields are what make an interface read as
+   generated; a little tooth stops that without becoming decoration. */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.dark .grain::before {
+  opacity: 0.055;
+}
+
+/* Navigation progress: accelerates away from 0 then creeps, so the bar
+   never implies completion the page has not reached. */
+@keyframes nav-progress {
+  0%   { width: 0%; }
+  30%  { width: 48%; }
+  60%  { width: 74%; }
+  100% { width: 90%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -7,6 +7,7 @@ import { PERSONAS, isPersonaKey } from "@/lib/personas";
 import { ProgressChart } from "@/components/dashboard/progress-chart";
 import type { ProgressPoint } from "@/components/dashboard/progress-chart";
 import { EmptyState, LinkButton, money } from "@/components/ui/primitives";
+import { PositionTrackMini } from "@/components/position-track";
 
 export const metadata: Metadata = { title: "Your progress" };
 
@@ -56,8 +57,12 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Your progress</p>
-          <h1 className="display mt-2 text-[clamp(1.9rem,4.5vw,2.6rem)] font-semibold">
+          <div className="flex items-center gap-3">
+            <span className="index">LOG</span>
+            <span className="h-px w-8 bg-rule-strong" />
+            <span className="label">Your progress</span>
+          </div>
+          <h1 className="display-xl mt-5 text-[clamp(2rem,5vw,3.2rem)]">
             {completed.length === 0
               ? "Nothing to measure yet."
               : `${completed.length} negotiation${completed.length === 1 ? "" : "s"} behind you.`}
@@ -80,14 +85,14 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <div className="mt-10 grid gap-6 sm:grid-cols-3">
             <Stat label="Average score" value={average} />
             <Stat label="Best" value={best} />
             <Stat label="Deals closed" value={deals} suffix={` / ${completed.length}`} />
           </div>
 
-          <section className="mt-6 rounded-xl border border-rule bg-paper-raised p-5 sm:p-6">
-            <h2 className="eyebrow mb-4">Score over time</h2>
+          <section className="mt-10 border-t border-rule pt-6">
+            <h2 className="label label-strong mb-5">Score over time</h2>
             {points.length === 1 ? (
               <p className="py-10 text-center text-[13.5px] text-ink-muted">
                 One result is a data point, not a trend. Run a couple more and this becomes
@@ -101,12 +106,12 @@ export default async function DashboardPage() {
       )}
 
       <section className="mt-10">
-        <h2 className="eyebrow mb-4">History</h2>
+        <h2 className="label label-strong mb-5 border-b border-rule-strong pb-2.5">History</h2>
 
         {rows.length === 0 ? (
           <p className="text-[14px] text-ink-muted">Nothing here yet.</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-rule">
+          <div className="border-b border-rule">
             {rows.map((s, i) => {
               const scenario = s.scenarios as {
                 title?: string;
@@ -118,17 +123,21 @@ export default async function DashboardPage() {
                 <Link
                   key={s.id}
                   href={active ? `/session/${s.id}` : `/session/${s.id}/report`}
-                  className={`flex flex-wrap items-center gap-x-4 gap-y-1 bg-paper-raised px-4 py-3.5 transition-colors hover:bg-paper-sunken sm:px-5 ${
+                  className={`group flex flex-wrap items-center gap-x-5 gap-y-2 py-4 transition-colors hover:bg-paper-sunken ${
                     i > 0 ? "border-t border-rule" : ""
                   }`}
                 >
+                  <span className="index w-8 shrink-0">
+                    {String(rows.length - i).padStart(2, "0")}
+                  </span>
+
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14.5px] font-medium text-ink">
+                    <p className="truncate text-[15px] font-medium text-ink">
                       {scenario?.title ?? "Negotiation"}
                     </p>
-                    <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
+                    <p className="label mt-1 truncate">
                       {isPersonaKey(s.persona_key)
-                        ? PERSONAS[s.persona_key].title
+                        ? PERSONAS[s.persona_key].shortName
                         : s.persona_key}
                       {" · "}
                       {new Date(s.started_at).toLocaleDateString("en-US", {
@@ -139,14 +148,24 @@ export default async function DashboardPage() {
                     </p>
                   </div>
 
+                  {/* The same axis as everywhere else, so a row of history
+                      reads at a glance as ground taken versus ground left. */}
+                  {!active && s.opening_anchor !== null && s.target_value !== null && (
+                    <div className="hidden w-28 shrink-0 md:block">
+                      <PositionTrackMini
+                        anchor={s.opening_anchor}
+                        current={s.final_value ?? s.opening_anchor}
+                        target={s.target_value}
+                      />
+                    </div>
+                  )}
+
                   {active ? (
-                    <span className="rounded-full bg-brass-wash px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-brass">
-                      In progress
-                    </span>
+                    <span className="label bg-brass-wash px-2 py-1 text-brass">In progress</span>
                   ) : (
                     <>
                       <div className="hidden text-right sm:block">
-                        <p className="text-[12.5px] text-ink-muted">
+                        <p className="label">
                           {OUTCOME_LABEL[s.outcome ?? ""] ?? "—"}
                         </p>
                         {s.final_value !== null && (
@@ -155,7 +174,7 @@ export default async function DashboardPage() {
                           </p>
                         )}
                       </div>
-                      <span className="tnum w-10 text-right text-[17px] font-medium text-ink">
+                      <span className="tnum w-11 text-right text-[20px] font-medium text-ink">
                         {s.score ?? "—"}
                       </span>
                     </>
@@ -181,9 +200,9 @@ function Stat({
   suffix?: string;
 }) {
   return (
-    <div className="rounded-xl border border-rule bg-paper-raised p-5">
-      <p className="eyebrow">{label}</p>
-      <p className="tnum mt-1.5 text-[1.9rem] font-medium leading-none text-ink">
+    <div className="border-t-2 border-rule-strong pt-4">
+      <p className="label">{label}</p>
+      <p className="tnum mt-3 text-[2.6rem] font-medium leading-none text-ink">
         {value ?? "—"}
         {suffix && <span className="text-[1rem] text-ink-faint">{suffix}</span>}
       </p>
