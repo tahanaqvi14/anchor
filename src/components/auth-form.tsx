@@ -105,7 +105,22 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
-    // No session means the project requires email confirmation.
+    // Supabase does not report an already-registered email as an error —
+    // that would turn this form into an account-enumeration oracle. It
+    // returns a success carrying a user with an EMPTY identities array and
+    // sends no email whatsoever. Without this check the person is sent to
+    // wait for a message that will never arrive, which is indistinguishable
+    // from the mail being broken.
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      setError(
+        "There is already an account with that email — that is why no message arrived. Sign in instead.",
+      );
+      setBusy(null);
+      return;
+    }
+
+    // No session, but a real new identity: the project requires email
+    // confirmation and a link is genuinely on its way.
     if (!data.session) {
       setCheckInbox(true);
       setBusy(null);
