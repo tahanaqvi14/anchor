@@ -127,12 +127,22 @@ opponent who has not moved.**
 has RLS enabled and every policy is scoped to `auth.uid()`. Server routes are
 built on the *publishable* key plus the user's own cookie, not the secret key —
 so server-side reads pass through the same policies the browser does. The secret
-key never touches a request path.
+key never touches a user's data: its only runtime uses are the keepalive cron
+and housekeeping for the shared demo account (below).
 
 **Transcripts and reports are append-only at the database level.** No
 `UPDATE`/`DELETE` policy exists on either. A transcript you can edit after the
 fact makes the feedback report meaningless, so the database refuses rather than
-trusting the app.
+trusting the app. Once a session finishes it is frozen too: its owner can no
+longer update it, delete it, or append to its transcript.
+
+**The demo account is public, so it is hardened rather than trusted.** Its
+credentials ship in the client by design, which means every visitor can do
+whatever its owner can. Finished history is frozen (above), profiles are not
+user-writable, a visitor who changes the demo's password or email is undone by
+the next visitor's sign-in (the server restores the published credentials when
+they stop working), and sessions visitors play are cleared after a day so the
+history a newcomer sees stays the curated one.
 
 **`messages` carries a denormalised `user_id`** so its RLS predicate is an
 indexed equality instead of a subquery into `sessions` on every row. It cannot
@@ -194,7 +204,7 @@ npm install
 cp .env.example .env.local     # then fill it in
 ```
 
-Create a Supabase project and run the two migrations in `supabase/migrations/`
+Create a Supabase project and run the three migrations in `supabase/migrations/`
 through the SQL editor, in order. Get a Gemini key from
 [aistudio.google.com](https://aistudio.google.com). Then:
 
@@ -250,3 +260,6 @@ Vercel Hobby forbids commercial use, which a portfolio piece does not run into.
   voice with the persona's pitch and rate still applied.
 - The report costs one Gemini call, so ending many negotiations quickly can hit
   the daily cap before the turn budget runs out.
+- **The demo account shares one daily session cap** (12 negotiations per day,
+  per account) across every visitor. Raise `DAILY_SESSION_LIMIT` in
+  `src/lib/negotiation/session-store.ts` if the demo gets more traffic than that.

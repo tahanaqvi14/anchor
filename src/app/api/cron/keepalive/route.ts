@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { findDemoUserId, pruneDemoVisitorData } from "@/lib/demo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,23 @@ export async function GET(request: Request) {
       .eq("is_preset", true);
 
     if (error) throw error;
-    return NextResponse.json({ ok: true, presets: count, at: new Date().toISOString() });
+
+    // While here, keep the shared demo's history curated even on days no
+    // one opens /demo. Best-effort: it must never fail the keepalive.
+    let demoPruned: { sessions: number; scenarios: number } | null = null;
+    try {
+      const demoId = await findDemoUserId(supabase);
+      if (demoId) demoPruned = await pruneDemoVisitorData(supabase, demoId);
+    } catch (e) {
+      console.error("[keepalive] demo prune failed:", e instanceof Error ? e.message : e);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      presets: count,
+      demoPruned,
+      at: new Date().toISOString(),
+    });
   } catch {
     return NextResponse.json({ ok: false, error: "Database unreachable" }, { status: 503 });
   }

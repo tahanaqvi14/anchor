@@ -46,14 +46,17 @@ interface Seed {
   finalValue: number | null;
   outcome: "deal" | "no_deal" | "user_walked" | "ai_walked";
   lines: [role: "user" | "ai", text: string][];
-  /** [messageSeq, sliceStart, sliceEnd] — a literal slice of that message. */
-  strengthCites: [number, number, number][];
-  misstepCites: [number, number, number][];
+  /** [messageSeq, quote] — the quote must appear verbatim in that USER
+   *  message. Checked by validateSeeds() before anything is written. (These
+   *  were character offsets once, and most of them ended mid-word: "$79,000
+   *  and we sign Thursda".) One cite per entry in strengthTexts/misstepTexts. */
+  strengthCites: [number, string][];
+  misstepCites: [number, string][];
   headline: string;
   summary: string;
   strengthTexts: [string, string][];
   misstepTexts: [string, string][];
-  alt: { seq: number; from: [number, number]; to: string; why: string };
+  alt: { seq: number; quote: string; to: string; why: string };
 }
 
 const SEEDS: Seed[] = [
@@ -73,8 +76,14 @@ const SEEDS: Seed[] = [
       ["ai", "There is — I can put you forward for the accelerated review at six months rather than twelve, and I have some latitude on the signing bonus."],
       ["user", "That works for me, let's go with that."],
     ],
-    strengthCites: [[2, 0, 34]],
-    misstepCites: [[4, 0, 35], [6, 0, 30]],
+    strengthCites: [
+      [2, "I was hoping for something closer to $175,000"],
+      [4, "Is there anything else that could flex?"],
+    ],
+    misstepCites: [
+      [4, "Okay, I understand the band is fixed."],
+      [6, "That works for me, let's go with that."],
+    ],
     headline: "You accepted the band as a fact one message after hearing it asserted.",
     summary:
       "You closed at **$149,000**, four thousand above the opening offer and twenty-six thousand short of your target. The accelerated review and signing bonus are real, but they are the currencies that cost them least.",
@@ -88,7 +97,7 @@ const SEEDS: Seed[] = [
     ],
     alt: {
       seq: 4,
-      from: [0, 35],
+      quote: "Okay, I understand the band is fixed.",
       to: "I hear the band tops out there. Who would need to be involved to make an exception, and when was one last approved?",
       why: "It treats the band as a process with a decision-maker rather than a wall, and it costs nothing to ask.",
     },
@@ -109,8 +118,14 @@ const SEEDS: Seed[] = [
       ["ai", "Then it sounds like you have a decision to make. I can maybe get to $85, and that's stretching it."],
       ["user", "That doesn't work for me. I'll pass, but good luck with the project."],
     ],
-    strengthCites: [[2, 0, 18], [6, 0, 27]],
-    misstepCites: [[4, 0, 22]],
+    strengthCites: [
+      [2, "My rate is $140."],
+      [6, "I'll pass, but good luck with the project."],
+    ],
+    misstepCites: [
+      [4, "I have two other projects starting this month at that rate."],
+      [2, "That's what this scope is worth and it's what I charge."],
+    ],
     headline: "You walked rather than take a bad rate, which was correct.",
     summary:
       "No deal. They moved from **$75** to **$85** and stopped; your floor was well above that. Walking away from a rate that would have anchored your next three clients was the right call, not a failure.",
@@ -124,7 +139,7 @@ const SEEDS: Seed[] = [
     ],
     alt: {
       seq: 4,
-      from: [0, 22],
+      quote: "There isn't much. I have two other projects starting this month at that rate.",
       to: "Before I answer that — who else is on this at $75, and are they doing the same scope? I want to make sure we're comparing the same job.",
       why: "It puts the burden of proof on their anchor instead of on your rate.",
     },
@@ -146,8 +161,11 @@ const SEEDS: Seed[] = [
       ["user", "$79,000 and we sign Thursday."],
       ["ai", "Done. I'll get the paperwork over this afternoon."],
     ],
-    strengthCites: [[4, 0, 44], [6, 0, 27]],
-    misstepCites: [[2, 0, 40]],
+    strengthCites: [
+      [4, "Your competitor quoted us $68,000 for the same seat count last week."],
+      [6, "$79,000 and we sign Thursday."],
+    ],
+    misstepCites: [[6, "we sign Thursday"]],
     headline: "The competitor quote moved them $14,000 in a single message.",
     summary:
       "Closed at **$79,000** against a $72,000 target and a $96,000 opening ask — you captured just over 70% of the available gap. The counter-offer at the end was the strongest move in the transcript.",
@@ -160,7 +178,7 @@ const SEEDS: Seed[] = [
     ],
     alt: {
       seq: 2,
-      from: [0, 40],
+      quote: "Before we discuss price, I'd like to understand what we're actually paying for.",
       to: "What happens on Friday, specifically? If the number goes up because of your quarter rather than our contract, let's talk about that openly.",
       why: "Naming the deadline forces them to defend it or drop it, and it usually gets dropped.",
     },
@@ -182,8 +200,13 @@ const SEEDS: Seed[] = [
       ["user", "I'll sign twenty-four months at $2,680, decided by Friday."],
       ["ai", "That I can do. I'll have the paperwork ready Thursday."],
     ],
-    strengthCites: [[2, 0, 46], [6, 0, 44]],
-    misstepCites: [[4, 0, 27]],
+    strengthCites: [
+      [2, "Three comparable units in this building are listed at $2,650 right now."],
+      [6, "I'll sign twenty-four months at $2,680, decided by Friday."],
+    ],
+    misstepCites: [
+      [4, "I'd like an answer by Friday. I'm viewing two other places on Saturday and I'd rather not."],
+    ],
     headline: "Putting a deadline on a staller was the move that ended it.",
     summary:
       "Signed at **$2,680**, sixty-eight percent of the way to your target. Against an opponent whose entire method is delay, forcing a date was worth more than any argument about price.",
@@ -196,7 +219,7 @@ const SEEDS: Seed[] = [
     ],
     alt: {
       seq: 4,
-      from: [0, 27],
+      quote: "I'd like an answer by Friday.",
       to: "I need a decision by Friday to keep this simple. Can the owner give an answer in that window, or should I plan around it?",
       why: "It makes the deadline a question they have to answer rather than a fact they can absorb.",
     },
@@ -219,8 +242,11 @@ const SEEDS: Seed[] = [
       ["ai", "$178,000, and that is genuinely the last of it."],
       ["user", "I'll take $178,000."],
     ],
-    strengthCites: [[2, 0, 48], [6, 0, 24]],
-    misstepCites: [[4, 0, 38]],
+    strengthCites: [
+      [2, "I have a written offer at $182,000 from a company with a comparable stage and scope."],
+      [6, "Which of us is looking at better data?"],
+    ],
+    misstepCites: [[4, "I'm happy to share the base and equity lines."]],
     headline: "You made them argue against evidence instead of arguing against you.",
     summary:
       "Closed at **$178,000** — eighty percent of the gap, against the opponent designed to give up the least. The turn that did it was refusing to accept 'the market has softened' as a fact when you held a document that said otherwise.",
@@ -233,7 +259,7 @@ const SEEDS: Seed[] = [
     ],
     alt: {
       seq: 4,
-      from: [0, 38],
+      quote: "Written, signed, expires in eight days. I'm happy to share the base and equity lines.",
       to: "Written and signed, and it expires in eight days. I'm not going to walk you through their comp structure — what matters is that it exists.",
       why: "It confirms the leverage without handing over the details they would use to undercut it.",
     },
@@ -242,7 +268,41 @@ const SEEDS: Seed[] = [
 
 /* ---------------------------------------------------------------- */
 
+/**
+ * Checked before anything is deleted, so a bad edit to SEEDS fails loudly
+ * instead of shipping a demo report that quotes half a word or a line the
+ * user never said — the exact failure the product claims to rule out.
+ */
+function validateSeeds(): void {
+  const problems: string[] = [];
+  for (const s of SEEDS) {
+    const check = (what: string, seq: number, quote: string) => {
+      const line = s.lines[seq - 1];
+      if (!line) return void problems.push(`${s.slug}: ${what} cites missing message #${seq}`);
+      if (line[0] !== "user") problems.push(`${s.slug}: ${what} cites #${seq}, an opponent line`);
+      if (!line[1].includes(quote)) {
+        problems.push(`${s.slug}: ${what} quote is not verbatim in #${seq}: "${quote}"`);
+      }
+    };
+    s.strengthCites.forEach(([seq, quote], i) => check(`strength ${i + 1}`, seq, quote));
+    s.misstepCites.forEach(([seq, quote], i) => check(`misstep ${i + 1}`, seq, quote));
+    check("alternative", s.alt.seq, s.alt.quote);
+    if (s.strengthCites.length !== s.strengthTexts.length) {
+      problems.push(`${s.slug}: ${s.strengthTexts.length} strengths but ${s.strengthCites.length} cites`);
+    }
+    if (s.misstepCites.length !== s.misstepTexts.length) {
+      problems.push(`${s.slug}: ${s.misstepTexts.length} missteps but ${s.misstepCites.length} cites`);
+    }
+  }
+  if (problems.length) {
+    console.error(`Seed data is invalid; nothing was changed.\n  ${problems.join("\n  ")}`);
+    process.exit(1);
+  }
+}
+
 async function main() {
+  validateSeeds();
+
   // Find or create the demo user.
   let userId: string | null = null;
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -342,7 +402,7 @@ async function main() {
       continue;
     }
 
-    await admin.from("messages").insert(
+    const { error: messagesError } = await admin.from("messages").insert(
       seed.lines.map(([role, content], i) => ({
         session_id: session.id,
         user_id: userId!,
@@ -353,15 +413,19 @@ async function main() {
         created_at: new Date(started.getTime() + i * 70_000).toISOString(),
       })),
     );
+    if (messagesError) {
+      // A session without its transcript would render as an empty report.
+      await admin.from("sessions").delete().eq("id", session.id);
+      console.error(`  failed ${seed.slug} (messages): ${messagesError.message}`);
+      continue;
+    }
 
-    // Citations are literal slices of the seeded messages, so every
-    // "jump to message" link in the demo report is correct by construction.
-    const quoteOf = ([seq, from, to]: [number, number, number]) => ({
-      message_seq: seq,
-      quote: seed.lines[seq - 1][1].slice(from, to),
-    });
+    // Citations are verbatim substrings of the seeded messages (checked in
+    // validateSeeds), so every "jump to message" link in the demo report is
+    // correct by construction.
+    const quoteOf = ([seq, quote]: [number, string]) => ({ message_seq: seq, quote });
 
-    await admin.from("feedback_reports").insert({
+    const { error: reportError } = await admin.from("feedback_reports").insert({
       session_id: session.id,
       user_id: userId,
       score,
@@ -380,16 +444,23 @@ async function main() {
       alternative_phrasings: [
         {
           message_seq: seed.alt.seq,
-          you_said: seed.lines[seed.alt.seq - 1][1].slice(seed.alt.from[0], seed.alt.from[1]),
+          you_said: seed.alt.quote,
           try_instead: seed.alt.to,
           why: seed.alt.why,
         },
       ],
       target_delta: seed.finalValue === null ? null : seed.finalValue - seed.target,
+      // "seeded" is also how the app's demo housekeeping (src/lib/demo.ts)
+      // tells curated history apart from sessions visitors played.
       model: "seeded",
       raw: null,
       created_at: ended.toISOString(),
     });
+    if (reportError) {
+      await admin.from("sessions").delete().eq("id", session.id);
+      console.error(`  failed ${seed.slug} (report): ${reportError.message}`);
+      continue;
+    }
 
     made++;
     console.log(`  ${seed.slug.padEnd(16)} vs ${seed.persona.padEnd(13)} score ${score}`);

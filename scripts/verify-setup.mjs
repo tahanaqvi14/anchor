@@ -168,6 +168,47 @@ try {
       .single();
     if (sess?.message_count === 1) ok("bump_message_count trigger fired");
     else bad(`message_count was ${sess?.message_count}, expected 1`);
+
+    // Migration 0003: finished history is frozen, even for its owner. This
+    // is what keeps the shared demo account's curated sessions intact.
+    await admin
+      .from("sessions")
+      .update({ status: "completed", outcome: "no_deal", ended_at: new Date().toISOString() })
+      .eq("id", sessionA.id);
+
+    const { data: rescored } = await a.client
+      .from("sessions")
+      .update({ score: 100 })
+      .eq("id", sessionA.id)
+      .select("id");
+    if (rescored?.length) bad("a user rewrote a finished session — run migration 0003");
+    else ok("a finished session cannot be rewritten by its owner");
+
+    const { data: removed } = await a.client
+      .from("sessions")
+      .delete()
+      .eq("id", sessionA.id)
+      .select("id");
+    if (removed?.length) bad("a user deleted a finished session — run migration 0003");
+    else ok("a finished session cannot be deleted by its owner");
+
+    const { error: lateErr } = await a.client.from("messages").insert({
+      session_id: sessionA.id,
+      user_id: a.id,
+      seq: 2,
+      role: "user",
+      content: "late",
+    });
+    if (lateErr) ok(`nothing can be appended to a finished transcript (${lateErr.code})`);
+    else bad("a user appended to a finished transcript — run migration 0003");
+
+    const { data: renamed } = await a.client
+      .from("profiles")
+      .update({ display_name: "renamed", is_demo: true })
+      .eq("id", a.id)
+      .select("id");
+    if (renamed?.length) bad("a user edited their own profile (incl. is_demo) — run migration 0003");
+    else ok("users cannot edit profiles or mark themselves as the demo account");
   }
 } catch (e) {
   bad(e.message);

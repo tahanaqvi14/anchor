@@ -66,6 +66,15 @@ export async function POST(request: Request) {
 
   const ledger = initLedger(ctx);
 
+  // Store the numbers as parsed, not as typed, so every later load of this
+  // session reads exactly the figures its ledger was built from.
+  const stored = {
+    ...context,
+    currentOffer: ctx.currentOffer,
+    target: ctx.target,
+    walkAway: ctx.walkAway,
+  };
+
   const { data: session, error: insertError } = await supabase
     .from("sessions")
     .insert({
@@ -75,7 +84,7 @@ export async function POST(request: Request) {
       persona_version: 1,
       status: "active",
       outcome: null,
-      context: { ...context, __ledger: ledger },
+      context: { ...stored, __ledger: ledger },
       target_value: ctx.target,
       opening_anchor: ledger.position,
       final_value: null,
@@ -91,11 +100,20 @@ export async function POST(request: Request) {
 
   try {
     const opening = await runTurn(ctx, ledger, []);
-    await appendMessage(supabase, session.id, user.id, 1, "ai", opening.output.reply);
+    const { error: openingError } = await appendMessage(
+      supabase,
+      session.id,
+      user.id,
+      1,
+      "ai",
+      opening.output.reply,
+    );
+    // Without its opening line the room would open on an empty transcript.
+    if (openingError) throw new Error(`Could not save the opening: ${openingError.message}`);
     await supabase
       .from("sessions")
       .update({
-        context: { ...context, __ledger: opening.update.ledger },
+        context: { ...stored, __ledger: opening.update.ledger },
         opening_anchor: opening.update.ledger.position,
       })
       .eq("id", session.id);

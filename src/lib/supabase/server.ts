@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 
 /**
@@ -9,7 +10,7 @@ import type { Database } from "./database.types";
  * the secret key. Every server-side read and write therefore passes through
  * the same RLS policies as the browser would — which is what makes the
  * multi-tenancy claim true of the whole application rather than just the
- * client. The secret key never touches a request path.
+ * client. The secret key never touches a user's data path.
  */
 export async function createClient() {
   const cookieStore = await cookies();
@@ -38,14 +39,16 @@ export async function createClient() {
 }
 
 /**
- * Admin client, for seeding only. Bypasses RLS entirely — never call this
- * from anything that runs in response to a user request.
+ * Admin client. Bypasses RLS entirely, so it is confined to two narrow,
+ * non-user paths: the keepalive cron, and demo-account housekeeping
+ * (src/lib/demo.ts), which only ever acts on the single is_demo account.
+ * Never use it to read or write data on behalf of a signed-in user.
  */
 export function createAdminClient() {
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!key) throw new Error("SUPABASE_SECRET_KEY is not set");
 
-  return createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
-    cookies: { getAll: () => [], setAll: () => {} },
+  return createSupabaseClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 }

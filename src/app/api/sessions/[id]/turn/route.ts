@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { MAX_USER_TURNS } from "@/lib/negotiation/ledger";
+import { MAX_USER_TURNS, scoreOutcome } from "@/lib/negotiation/ledger";
 import { runTurn, QuotaExhaustedError } from "@/lib/negotiation/engine";
 import { appendMessage, loadSession, saveLedger } from "@/lib/negotiation/session-store";
 
@@ -48,26 +48,45 @@ export async function POST(
   }
 
   const userSeq = loaded.nextSeq;
-  const { error: writeError } = await appendMessage(
-    supabase,
-    id,
-    user.id,
-    userSeq,
-    "user",
-    content,
-    body.inputMode === "voice" ? "voice" : "text",
-  );
-  if (writeError) {
-    return NextResponse.json({ error: "Could not save your message" }, { status: 500 });
-  }
 
   try {
+    // The opponent replies BEFORE anything is written. Transcripts are
+    // append-only, so persisting the user's message first meant a failed
+    // model call (a spent daily quota, say) left an unanswered line that a
+    // resend then duplicated — permanently, in the transcript the report
+    // quotes from.
     const result = await runTurn(loaded.ctx, loaded.ledger, [
       ...loaded.transcript,
       { role: "user", content },
     ]);
 
-    await appendMessage(supabase, id, user.id, userSeq + 1, "ai", result.output.reply);
+    const { error: userWriteError } = await appendMessage(
+      supabase,
+      id,
+      user.id,
+      userSeq,
+      "user",
+      content,
+      body.inputMode === "voice" ? "voice" : "text",
+    );
+    if (userWriteError) {
+      return NextResponse.json({ error: "Could not save your message" }, { status: 500 });
+    }
+
+    const { error: replyWriteError } = await appendMessage(
+      supabase,
+      id,
+      user.id,
+      userSeq + 1,
+      "ai",
+      result.output.reply,
+    );
+    if (replyWriteError) {
+      return NextResponse.json(
+        { error: "Their reply could not be saved. Reload the page and try again." },
+        { status: 500 },
+      );
+    }
     await saveLedger(supabase, loaded.session, result.update.ledger);
 
     // A walk-away has to be persisted, not just reported to the client.
@@ -81,6 +100,10 @@ export async function POST(
           status: "completed",
           outcome: "ai_walked",
           final_value: null,
+          // Scored now, not when the report is written: a finished session
+          // can no longer be updated by its owner (migration 0003), and a
+          // null score would drop it from the dashboard.
+          score: scoreOutcome(loaded.ctx, null, "ai_walked"),
           ended_at: new Date().toISOString(),
         })
         .eq("id", id);

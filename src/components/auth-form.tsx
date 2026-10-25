@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MailCheck } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { DEMO_CONFIGURED, signInToDemo } from "@/lib/demo-sign-in";
 import { Button, ErrorNote, Field, inputClass } from "@/components/ui/primitives";
 
 /**
@@ -19,7 +20,14 @@ import { Button, ErrorNote, Field, inputClass } from "@/components/ui/primitives
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/practice";
+  // Same-site paths only. router.push follows an absolute URL, so an
+  // unchecked /login?next=https://evil.example would hand a user who had
+  // just signed in on the real site straight to a lookalike.
+  const requestedNext = params.get("next") ?? "/practice";
+  const next =
+    requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.startsWith("/\\")
+      ? requestedNext
+      : "/practice";
   // Encoded before being embedded in a query string: an unencoded path
   // carrying its own ?/& would silently truncate the redirect target.
   const nextParam = encodeURIComponent(next);
@@ -45,10 +53,19 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             ? "That link was incomplete. Try signing in below."
             : null;
 
-  const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
-  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+  async function withDemo() {
+    setBusy("demo");
+    setError(null);
+    if (!(await signInToDemo(createClient()))) {
+      setError("The demo account could not be opened just now. Try again in a moment, or create an account.");
+      setBusy(null);
+      return;
+    }
+    router.push(next);
+    router.refresh();
+  }
 
-  async function signInWith(mail: string, pass: string, kind: "email" | "demo") {
+  async function signInWith(mail: string, pass: string, kind: "email") {
     setBusy(kind);
     setError(null);
     const supabase = createClient();
@@ -215,14 +232,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         Continue with Google
       </Button>
 
-      {demoEmail && demoPassword && (
+      {DEMO_CONFIGURED && (
         <Button
           type="button"
           variant="outline"
           size="lg"
           className="w-full"
           loading={busy === "demo"}
-          onClick={() => signInWith(demoEmail, demoPassword, "demo")}
+          onClick={withDemo}
         >
           Explore the demo account — no signup
         </Button>

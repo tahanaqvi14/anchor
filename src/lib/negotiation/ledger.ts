@@ -45,12 +45,12 @@ export function initLedger(ctx: SessionContext): Ledger {
 
   // Opening may re-anchor AWAY from the user (negative bias), which is how
   // the Lowballer and Closer start from a worse place than the status quo.
-  const position = ctx.currentOffer + sign * playbook.openingBias * gap;
-  const reservation = ctx.currentOffer + sign * playbook.reservationFraction * gap;
+  const position = round(ctx.currentOffer + sign * playbook.openingBias * gap, ctx);
+  const reservation = round(ctx.currentOffer + sign * playbook.reservationFraction * gap, ctx);
 
   return {
-    position: round(position, ctx),
-    reservation: round(reservation, ctx),
+    position,
+    reservation,
     budgetRemaining: Math.abs(reservation - position),
     patience: 100,
     direction,
@@ -62,12 +62,34 @@ export function initLedger(ctx: SessionContext): Ledger {
   };
 }
 
-/** Money rounds to whole units; hourly rates to the nearest whole too.
- *  Nobody counters with $158,342.71. */
-function round(v: number, ctx: SessionContext): number {
+const STEPS = [1, 5, 10, 25, 50, 100, 250, 500];
+
+/** Money rounds to a round step; hourly rates to the nearest whole.
+ *  Nobody counters with $158,342.71.
+ *
+ *  The step grows with the size of the number but is capped at a fiftieth
+ *  of the gap being negotiated. Sized by magnitude alone, a $38,500 car with
+ *  a $4,500 gap snapped to $500 — larger than any single concession three of
+ *  the four personas can make there — so every move rounded back to where it
+ *  started and those opponents could never budge, whatever the user did. */
+export function roundingStep(ctx: SessionContext): number {
   const magnitude = Math.abs(ctx.currentOffer);
-  const step = magnitude >= 10_000 ? 500 : magnitude >= 1000 ? 50 : 1;
+  const byMagnitude = magnitude >= 10_000 ? 500 : magnitude >= 1000 ? 50 : 1;
+  const byGap = Math.abs(ctx.target - ctx.currentOffer) / 50;
+  const limit = Math.min(byMagnitude, byGap);
+  return STEPS.filter((s) => s <= limit).at(-1) ?? 1;
+}
+
+function round(v: number, ctx: SessionContext): number {
+  const step = roundingStep(ctx);
   return Math.round(v / step) * step;
+}
+
+/** Rounds onto the same grid, but never past `from` — used to state a
+ *  bound the model can quote exactly without it rounding beyond the bound. */
+export function roundToward(v: number, from: number, ctx: SessionContext): number {
+  const step = roundingStep(ctx);
+  return v >= from ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
 }
 
 export interface TurnUpdate {

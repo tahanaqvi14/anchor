@@ -2,7 +2,7 @@ import { Type } from "@google/genai";
 import { PLAYBOOKS } from "./playbooks";
 import { TACTICS } from "./types";
 import type { Ledger, SessionContext } from "./types";
-import { MAX_USER_TURNS } from "./ledger";
+import { MAX_USER_TURNS, roundToward } from "./ledger";
 
 /**
  * Turn prompt assembly.
@@ -34,12 +34,16 @@ export function buildSystemPrompt(ctx: SessionContext, ledger: Ledger): string {
 
   const maxShare = Math.max(...Object.values(pb.responses).map((r) => r.concede), 0.4);
   const maxAllowance = ledger.budgetRemaining * pb.concessionSize * maxShare;
-  const bound = ledger.position + sign * maxAllowance;
+  // On the ledger's rounding grid, so a number the model quotes from this
+  // range is the number the user then sees on the position track.
+  const bound = roundToward(ledger.position + sign * maxAllowance, ledger.position, ctx);
 
   const range =
-    ledger.direction === "up"
-      ? `between ${fmt(ledger.position, ctx)} and ${fmt(bound, ctx)}`
-      : `between ${fmt(bound, ctx)} and ${fmt(ledger.position, ctx)}`;
+    bound === ledger.position
+      ? null
+      : ledger.direction === "up"
+        ? `between ${fmt(ledger.position, ctx)} and ${fmt(bound, ctx)}`
+        : `between ${fmt(bound, ctx)} and ${fmt(ledger.position, ctx)}`;
 
   const tacticTable = TACTICS.map(
     (t) => `- ${t}: ${pb.responses[t].instruction}`,
@@ -61,7 +65,11 @@ ${pb.persona}
 # Your position right now
 Your current number is ${fmt(ledger.position, ctx)}.
 
-This turn you may state any number ${range}. You must not go beyond that on either side. Standing completely still is always allowed and is usually the stronger move.
+${
+    range
+      ? `This turn you may state any number ${range}. You must not go beyond that on either side. Standing completely still is always allowed and is usually the stronger move.`
+      : `This turn you must hold at ${fmt(ledger.position, ctx)}. Do not state any other number.`
+  }
 
 You have made ${ledger.concessionsMade} concession(s) so far. They have held firm ${ledger.consecutiveFirmHolds} time(s) in a row${
     ledger.consecutiveUserConcessions > 0

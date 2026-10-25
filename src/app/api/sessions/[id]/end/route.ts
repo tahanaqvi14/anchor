@@ -118,9 +118,9 @@ export async function POST(
       return NextResponse.json({ error: "Could not save the report" }, { status: 500 });
     }
 
-    // Keep the session's score consistent with the report's.
-    await supabase.from("sessions").update({ score: report.score }).eq("id", id);
-
+    // No score write-back here: the session was scored when it closed, with
+    // the same formula and inputs the report used, and a finished session is
+    // no longer writable by its owner (migration 0003).
     return NextResponse.json({ reportId: saved.id });
   } catch (e) {
     // Server-side only. A swallowed generation failure is indistinguishable

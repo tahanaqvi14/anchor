@@ -33,13 +33,18 @@ export interface LoadedSession {
   nextSeq: number;
 }
 
-function num(v: unknown): number | null {
+/** Reads money the way people type it: "145000", "$145,000", "145 000",
+ *  "145k", "1.2m", "2,850/mo". Stripping every non-digit used to turn "145k"
+ *  into 145 and "abc" or "$" into 0 — a silently wrong negotiation rather
+ *  than an error the user could fix. */
+export function num(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string") {
-    const parsed = Number(v.replace(/[^0-9.-]/g, ""));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+  if (typeof v !== "string") return null;
+  const s = v.toLowerCase().replace(/(\d)[\s,](?=\d)/g, "$1");
+  const m = s.match(/(\d+(?:\.\d+)?|\.\d+)([km])?(?![a-z\d.])/);
+  if (!m) return null;
+  const parsed = Number(m[1]) * (m[2] === "k" ? 1_000 : m[2] === "m" ? 1_000_000 : 1);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function buildContext(
@@ -52,7 +57,7 @@ export function buildContext(
   const currentOffer = num(raw.currentOffer);
   const target = num(raw.target);
   if (currentOffer === null || target === null) {
-    throw new Error("Both a current offer and a target are required");
+    throw new Error("Enter their current offer and your target as numbers, e.g. 145000");
   }
   if (currentOffer === target) {
     throw new Error("Your target must differ from their current offer");

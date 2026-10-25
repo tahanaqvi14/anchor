@@ -56,6 +56,9 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // The custom scenario saved by an earlier attempt, so fixing a typo in a
+  // number and pressing start again does not save the same scenario twice.
+  const [savedCustom, setSavedCustom] = useState<{ title: string; id: string } | null>(null);
 
   const scenario = useMemo(
     () => scenarios.find((s) => s.id === scenarioId) ?? null,
@@ -85,14 +88,20 @@ export function SetupFlow({ scenarios }: { scenarios: ScenarioRow[] }) {
       // A custom scenario becomes a real row so it can be replayed later and
       // shows up in history like any other.
       if (isCustom) {
-        const res = await fetch("/api/scenarios", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title: customTitle.trim() }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Could not save that scenario");
-        targetScenarioId = json.scenarioId;
+        const title = customTitle.trim();
+        if (savedCustom?.title === title) {
+          targetScenarioId = savedCustom.id;
+        } else {
+          const res = await fetch("/api/scenarios", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error ?? "Could not save that scenario");
+          targetScenarioId = json.scenarioId;
+          setSavedCustom({ title, id: json.scenarioId });
+        }
       }
 
       const res = await fetch("/api/sessions", {

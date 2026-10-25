@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/client";
+import { DEMO_CONFIGURED, signInToDemo } from "@/lib/demo-sign-in";
 import { Wordmark } from "@/components/brand/wordmark";
 import { LinkButton, Spinner } from "@/components/ui/primitives";
 
@@ -21,12 +22,9 @@ import { LinkButton, Spinner } from "@/components/ui/primitives";
  * be shared, every table is RLS-scoped, and a per-user daily session cap
  * bounds what a visitor can spend.
  */
-/* Read once at module scope. NEXT_PUBLIC_ values are inlined at build time,
-   so whether the demo is configured is a build-time constant rather than
-   something to discover in an effect. */
-const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL;
-const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
-const CONFIGURED = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
+/* DEMO_CONFIGURED is a build-time constant (NEXT_PUBLIC_ values are inlined),
+   so it is read at module scope rather than discovered in an effect. */
+const CONFIGURED = DEMO_CONFIGURED;
 
 const NOT_CONFIGURED =
   "The demo account is not configured for this deployment. You can still create an account.";
@@ -47,12 +45,8 @@ export default function DemoPage() {
     started.current = true;
 
     (async () => {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL!,
-        password: DEMO_PASSWORD!,
-      });
-      if (error) {
+      const signedIn = await signInToDemo(createClient());
+      if (!signedIn) {
         setSignInError(
           "The demo account could not be opened just now. Please sign in instead.",
         );
