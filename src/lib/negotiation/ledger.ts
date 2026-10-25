@@ -107,8 +107,10 @@ export function applyTurn(
   const ceiling = prev.position + sign * allowance;
 
   // The model may move anywhere between standing still and this turn's
-  // allowance — never backwards, never past the reservation.
-  const lo = prev.direction === "up" ? prev.position : Math.min(ceiling, prev.reservation);
+  // allowance — never backwards, never past the reservation. Going down,
+  // the tighter of the two bounds is the HIGHER one, hence max rather than
+  // min (min let a "down" opponent fall straight to its reservation).
+  const lo = prev.direction === "up" ? prev.position : Math.max(ceiling, prev.reservation);
   const hi = prev.direction === "up" ? Math.min(ceiling, prev.reservation) : prev.position;
 
   const rawProposal = Number.isFinite(proposedPosition) ? proposedPosition : prev.position;
@@ -173,7 +175,10 @@ export function scoreOutcome(
   // beats signing one. It is scored as a modest floor rather than zero.
   if (finalValue === null) return outcome === "user_walked" ? 35 : 20;
 
-  const captured = Math.abs(finalValue - ctx.currentOffer) / gap;
+  // Signed toward the target, so a deal worse than the starting offer
+  // floors at 0 instead of scoring as progress.
+  const sign = directionOf(ctx) === "up" ? 1 : -1;
+  const captured = (sign * (finalValue - ctx.currentOffer)) / gap;
   return Math.round(clamp(captured, 0, 1) * 100);
 }
 

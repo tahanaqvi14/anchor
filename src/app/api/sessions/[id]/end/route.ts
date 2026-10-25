@@ -36,8 +36,8 @@ export async function POST(
     return NextResponse.json({ error: "Malformed request" }, { status: 400 });
   }
 
-  const outcome = body.outcome;
-  if (!outcome || !OUTCOMES.includes(outcome)) {
+  const requested = body.outcome;
+  if (!requested || !OUTCOMES.includes(requested)) {
     return NextResponse.json({ error: "Unknown outcome" }, { status: 400 });
   }
 
@@ -51,10 +51,17 @@ export async function POST(
     );
   }
 
+  // Once a session is closed its verdict is fixed. A report retry, or the
+  // report after an opponent walk-away the turn route already recorded, must
+  // describe what was stored rather than whatever the request carries.
+  const closed = loaded.session.status !== "active" && loaded.session.outcome !== null;
+  const outcome: SessionOutcome = closed ? loaded.session.outcome! : requested;
+
   // A deal settles at the opponent's standing position unless the client
   // says otherwise; every other outcome has no agreed number by definition.
-  const finalValue =
-    outcome === "deal"
+  const finalValue = closed
+    ? loaded.session.final_value
+    : outcome === "deal"
       ? typeof body.finalValue === "number" && Number.isFinite(body.finalValue)
         ? body.finalValue
         : loaded.ledger.position

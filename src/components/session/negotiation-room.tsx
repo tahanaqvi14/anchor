@@ -218,6 +218,13 @@ export function NegotiationRoom({
                 <p className="mt-1.5 text-[13.5px] text-ink-muted">
                   Your report is where the useful part is.
                 </p>
+                {/* The composer, which normally shows errors, is gone once the
+                    opponent has walked, so a failed report call reports here. */}
+                {error && (
+                  <div className="mx-auto mt-4 max-w-md text-left">
+                    <ErrorNote>{error}</ErrorNote>
+                  </div>
+                )}
                 <Button className="mt-4" onClick={() => finish("ai_walked")} loading={closing}>
                   See the report
                 </Button>
